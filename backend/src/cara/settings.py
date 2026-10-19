@@ -161,7 +161,10 @@ class StudySettings(Frozen):
     Attributes:
         labels: At least two, with unique names.
         encoder: The encoder whose embeddings group the pools and build them for `knn`, such as
-            `dinov3` or `siglip2:google/siglip2-base-patch16-224` (see `cara.encoders`).
+            `dinov3` or `siglip2:google/siglip2-base-patch16-224` (see `cara.encoders`). None: a study
+            without embeddings, judged one image at a time in pool order; then the pools are the given
+            candidates or a random draw, and grouping, Suggest mode, similar images and the settings
+            simulator are off.
         top_k_individual: The images most similar to the query that are judged one by one, outside any group.
         order: How images are ranked: by similarity to the query, or in the pool's own rank order (for
             queries without an embedding of their own).
@@ -173,7 +176,7 @@ class StudySettings(Frozen):
 
     name: str
     labels: list[Label] = Field(min_length=2)
-    encoder: str = Field(pattern=ENCODER_NAME)
+    encoder: str | None = Field(pattern=ENCODER_NAME)
     pool: PoolSettings = PoolSettings()
     grouping: GroupingSettings = Agglomerative(method="agglomerative")
     solo: SoloSettings = SoloSettings()
@@ -195,6 +198,24 @@ class StudySettings(Frozen):
             raise ValueError(
                 f"only labels without a grade can be switched off (offered: false), not {hidden}"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _encoder_free(self) -> Self:
+        if self.encoder is not None:
+            return self
+        needs = [
+            what
+            for what, needed in (
+                (f"grouping (method {self.grouping.method!r}; use 'none')", self.grouping.method != "none"),
+                ("nearest-neighbour pools (pool.source 'knn')", self.pool.source == "knn"),
+                ("ordering by similarity (order 'similarity'; use 'pool_rank')", self.order == "similarity"),
+                ("Suggest mode (suggest.enabled)", self.suggest.enabled),
+            )
+            if needed
+        ]
+        if needs:
+            raise ValueError(f"encoder is null, but these need one: {'; '.join(needs)}")
         return self
 
     @classmethod

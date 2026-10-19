@@ -57,7 +57,10 @@ class StudyIn(BaseModel):
     name: str = Field(min_length=1, max_length=256)
     dataset_id: int
     query_set: str
-    encoder: str
+    encoder: str | None = Field(
+        default=None,
+        description="Groups the pools; None judges every image on its own (given or random pools).",
+    )
     k: int | None = Field(
         default=None,
         ge=2,

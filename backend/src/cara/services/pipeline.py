@@ -12,9 +12,11 @@ from cara.core.fusion import reciprocal_rank_fusion
 from cara.db.models import QueryRow, Role, StudyRow
 from cara.errors import Conflict, Invalid
 from cara.grouping import scores
+from cara.grouping.agglomerative import Agglomerative
+from cara.grouping.none import NoGrouping
 from cara.repositories.database import Database
 from cara.services.datasets import LEGACY_SET, DatasetService, dataset_yaml
-from cara.services.studies import StudyService, settings_of
+from cara.services.studies import StudyService, encoder_of, settings_of
 from cara.services.users import UserService
 from cara.settings import STANDARD_LABELS, PoolSettings, StudySettings
 
@@ -41,7 +43,7 @@ class PipelineService:
         name: str,
         dataset_id: int,
         query_set: str,
-        encoder: str,
+        encoder: str | None,
         k: int | None,
         count: int | None,
         seed: int,
@@ -54,6 +56,8 @@ class PipelineService:
         """Create a study from the New study page, with the standard labels.
 
         Args:
+            encoder: Groups the pools (and builds them for `knn`); None judges every image on its own, which
+                works with the given candidates or a random draw only.
             k: Images per pool for `knn` and `random` pools; None for the given candidates.
             count: How many queries to sample from the set; None takes all.
             unsure: Whether the Unsure label is offered.
@@ -61,8 +65,9 @@ class PipelineService:
             pool_encoders: For `knn`, more encoders whose nearest neighbours are fused with `encoder`'s.
 
         Raises:
-            Invalid: The dataset has no such query set, or an encoder can't pool or group it; the message says
-                which and that `cara encode` makes the embeddings.
+            Invalid: The dataset has no such query set, an encoder can't pool or group it (the message says
+                which and that `cara encode` makes the embeddings), or a study without an encoder asks for
+                nearest-neighbour pools or a set without given candidates.
         """
         info = next((s for s in self.datasets.query_sets(dataset_id) if s.name == query_set), None)
         if info is None:
@@ -71,7 +76,12 @@ class PipelineService:
         allowed = info.given_encoders if source == "file" else info.knn_encoders
         if source == "random":
             allowed = sorted(self.db.datasets.encoders(dataset_id))
-        for needed in (encoder, *pool_encoders) if source == "knn" else (encoder,):
+        if encoder is None and source == "knn":
+            raise Invalid("nearest-neighbour pools need an encoder; choose one, or a random pool")
+        if encoder is None and source == "file" and not info.given_pools:
+            raise Invalid(f"query set {query_set!r} has no given candidates; choose a random pool")
+        checked = (encoder, *pool_encoders) if source == "knn" else (encoder,)
+        for needed in [name for name in checked if name is not None]:
             if needed not in allowed:
                 how = {
                     "knn": f"pooled by nearest neighbours with {needed}",
@@ -79,7 +89,7 @@ class PipelineService:
                     "random": f"grouped with {needed}: the dataset has no {needed} embeddings",
                 }[source]
                 raise Invalid(f"query set {query_set!r} cannot be {how}; run cara encode on the dataset")
-        encoders = [encoder, *pool_encoders] if pool_encoders else []
+        encoders = [encoder, *pool_encoders] if pool_encoders and encoder is not None else []
         labels = [
             label.model_copy(update={"offered": unsure or label.grade is not None})
             for label in STANDARD_LABELS
@@ -89,6 +99,7 @@ class PipelineService:
             labels=labels,
             encoder=encoder,
             pool=PoolSettings(source=source, k=None if source == "file" else k, encoders=encoders, seed=seed),
+            grouping=Agglomerative(method="agglomerative") if encoder else NoGrouping(method="none"),
             order="similarity" if encoder in info.knn_encoders else "pool_rank",
         )
         return self.setup_study(settings, dataset_id, query_set, count, seed, annotators, tuple(admins))
@@ -165,7 +176,8 @@ class PipelineService:
 
         `knn` takes each query's `k` nearest corpus images, fused over `pool.encoders` when there are several.
         `random` draws `k` corpus images per query among those the study's encoder has embedded, so every
-        pool can be grouped; the draw depends only on `pool.seed` and the query, so a rebuild draws the same.
+        pool can be grouped (among all corpus images for a study without an encoder); the draw depends only
+        on `pool.seed` and the query, so a rebuild draws the same.
 
         Raises:
             Conflict: Judging has started, a pilot query has judgments, or `pool.source` is `file`.
@@ -186,7 +198,11 @@ class PipelineService:
                 f"pool.k is null (whole corpus) but the corpus has {len(corpus)} images, more than "
                 f"pool.max_size={settings.pool.max_size}; set pool.k"
             )
-        unembedded = set(self.db.datasets.missing_embeddings(study.dataset_id, settings.encoder).values())
+        unembedded = (
+            set(self.db.datasets.missing_embeddings(study.dataset_id, settings.encoder).values())
+            if settings.encoder is not None
+            else set()
+        )
         drawable = [image_id for image_id in corpus if image_id not in unembedded]
         self.db.studies.delete_pools(study_id)
         for query in self.db.studies.list_queries(study_id):
@@ -209,7 +225,7 @@ class PipelineService:
         """Return the query's `pool.k` nearest corpus images, fused over `pool.encoders` when several."""
         k = settings.pool.k or 0
         rankings = []
-        for encoder in settings.pool.encoders or [settings.encoder]:
+        for encoder in settings.pool.encoders or [encoder_of(settings, "Nearest-neighbour pools")]:
             if (query_vec := self.datasets.query_vector(query, encoder)) is None:
                 raise Invalid(
                     f"query {query.external_id} has no {encoder} embedding; run cara encode on its dataset"
@@ -220,6 +236,8 @@ class PipelineService:
     def cluster(self, study_id: int) -> None:
         """Group every pool of the study with its grouping settings, and store each image's score.
 
+        Without an encoder nothing is grouped: every image is judged on its own, scored by its pool rank.
+
         Raises:
             Conflict: Judging has started.
             KeyError: An image has no embedding by the study's encoder.
@@ -227,6 +245,11 @@ class PipelineService:
         settings = settings_of(self._unlocked(study_id))
         for pool in self.db.studies.list_pools(study_id):
             members = sorted(pool.members, key=lambda m: m.rank)
+            if settings.encoder is None:
+                # Nothing to group by: every image is judged on its own, in pool order.
+                for member in members:
+                    member.score, member.group_id = float(-member.rank), None
+                continue
             emb_nd = self.db.datasets.embeddings(settings.encoder, [m.image_id for m in members])
             query_emb_d = (
                 self.datasets.query_vector(pool.query, settings.encoder)

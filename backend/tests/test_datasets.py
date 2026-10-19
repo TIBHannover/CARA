@@ -1,6 +1,7 @@
 """Datasets shared by studies, pooling rules, the first admin, the New study page, and file errors."""
 
 import json
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +17,7 @@ from cara.services.datasets import DatasetService
 from cara.services.pipeline import PipelineService
 from cara.services.simulator import SimulatorService
 from cara.services.users import UserService
-from cara.settings import PoolSettings
+from cara.settings import PoolSettings, StudySettings
 
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
@@ -225,3 +226,49 @@ def test_the_dashboard_creates_random_pools_and_checks_pooling_encoders(client: 
     }
     fused = body | {"name": "fused", "k": 6, "pool_encoders": ["missing"]}
     assert client.post("/studies", json=fused, headers=root).status_code == 422
+
+
+def test_a_study_without_an_encoder_judges_one_image_at_a_time(
+    client: TestClient, clean: sessionmaker[Session], tmp_path: Path
+) -> None:
+    root, bob = login(client, "root"), login(client, "bob")
+    [toy] = client.get("/datasets", headers=root).json()
+    body = {"name": "plain", "dataset_id": toy["id"], "query_set": "default", "annotators": ["bob"]}
+    assert client.post("/studies", json=body | {"pool": "knn", "k": 5}, headers=root).status_code == 422
+    created = client.post("/studies", json=body | {"pool": "file"}, headers=root).json()
+    assert created["settings"]["encoder"] is None
+    assert created["settings"]["grouping"]["method"] == "none"
+    base = f"/studies/{created['id']}/queries/2"
+    view = client.get(base, headers=bob).json()
+    assert view["groups"] == [] and len(view["individual"]) == 12
+    assert [m["score"] for m in view["individual"]] == sorted(
+        (m["score"] for m in view["individual"]), reverse=True
+    )
+    one = [view["individual"][0]["member_id"]]
+    two = [m["member_id"] for m in view["individual"][:2]]
+    assert client.post(f"{base}/split", json={"member_ids": two}, headers=bob).status_code == 409
+    assert client.get(f"{base}/similar", params={"to": one, "k": 3}, headers=bob).status_code == 409
+    # Suggest mode can't be switched on without an encoder, so it is refused as off.
+    assert client.get(f"{base}/suggestions", headers=bob).status_code == 403
+    # A dataset without any embeddings still gets random pools.
+    folder = _dataset_folder(tmp_path)
+    shutil.rmtree(folder / "index")
+    with clean.begin() as session:
+        db = Database(session)
+        dataset_id = DatasetService(db).add_folder(folder, None, None, None).id
+        assert db.datasets.encoders(dataset_id) == {}
+        study = PipelineService(db).new_study(
+            "drawn", dataset_id, "image", None, 4, None, 0, True, [], [], pool="random"
+        )
+        pools = db.studies.list_pools(study.id)
+        assert len(pools) == 3 and all(len(p.members) == 4 for p in pools)
+        assert all(m.group_id is None for p in pools for m in p.members)
+
+
+def test_settings_without_an_encoder_name_what_needs_one() -> None:
+    plain = SETTINGS.model_dump() | {"encoder": None, "pool": {"source": "knn", "k": 5}}
+    with pytest.raises(ValueError, match="grouping .*nearest-neighbour pools.*ordering by similarity"):
+        StudySettings.model_validate(plain)
+    StudySettings.model_validate(
+        plain | {"pool": {"source": "random", "k": 5}, "grouping": {"method": "none"}, "order": "pool_rank"}
+    )

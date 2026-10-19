@@ -18,6 +18,7 @@ from cara.services.datasets import DatasetService
 from cara.services.simulator.plan import SimulatorPlan, Source
 from cara.services.simulator.replay import PoolInput, Setup, replay_all
 from cara.services.simulator.results import SettingResult, SettingTally, mark_tradeoffs
+from cara.services.studies import encoder_of
 from cara.settings import StudySettings
 from cara.simulation import ReviewRound, Setting
 
@@ -76,7 +77,7 @@ class SimulationRun:
         yield self._compare(tallies)
 
     def _embeddings(self, inputs: list[PoolInput]) -> Iterator[SimulatorEvent]:
-        encoder, order = self.settings.encoder, self.settings.order
+        encoder, order = encoder_of(self.settings, "The settings simulator"), self.settings.order
         for index, (pool, truth_n) in enumerate(self.sampled):
             members = sorted(pool.members, key=lambda m: m.rank)
             emb_nd = self.db.datasets.embeddings(encoder, [m.image_id for m in members])

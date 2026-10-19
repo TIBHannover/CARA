@@ -9,7 +9,7 @@ from cara.core.suggest import suggest as core_suggest
 from cara.db.models import Source, UserRow
 from cara.errors import Forbidden, NotFound
 from cara.repositories.database import Database
-from cara.services.studies import StudyService, settings_of
+from cara.services.studies import StudyService, encoder_of, settings_of
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +63,8 @@ class SimilarityService:
         unknown = sorted(set(to) - index.keys())
         if unknown or not to:
             raise NotFound(f"members {unknown} are not in the pool of query {query_id}")
-        emb_nd = self.db.datasets.embeddings(settings.encoder, [m.image_id for m in members])
+        encoder = encoder_of(settings, "Similar images")
+        emb_nd = self.db.datasets.embeddings(encoder, [m.image_id for m in members])
         score_n = (emb_nd @ emb_nd[[index[m] for m in to]].T).max(axis=1)
         score_n[[index[m] for m in to]] = -np.inf
         return [
@@ -103,15 +104,16 @@ class SimilarityService:
         open_ = [i for i, m in enumerate(members) if m.id not in labels]
         if not ready or not open_:
             return result
-        emb_nd = self.db.datasets.embeddings(settings.encoder, [m.image_id for m in members])
+        encoder = encoder_of(settings, "Suggest mode")
+        emb_nd = self.db.datasets.embeddings(encoder, [m.image_id for m in members])
         sim_nn = emb_nd @ emb_nd.T
         seed_rows = [i for i, _ in seeds]
         query_o = None
         if query.image_id is not None and (
             query.image_id,
-            settings.encoder,
+            encoder,
         ) in self.db.datasets.image_encoders([query.image_id]):
-            query_o = emb_nd[open_] @ self.db.datasets.embeddings(settings.encoder, [query.image_id])[0]
+            query_o = emb_nd[open_] @ self.db.datasets.embeddings(encoder, [query.image_id])[0]
         found, rest = core_suggest(
             sim_nn[np.ix_(open_, seed_rows)],
             sim_nn[np.ix_(seed_rows, seed_rows)],

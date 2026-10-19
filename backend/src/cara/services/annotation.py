@@ -12,7 +12,7 @@ import numpy as np
 from cara.db.models import ActionKind, LabelRow, PoolMemberRow, PoolRow, Source, UserRow
 from cara.errors import Conflict, NotFound
 from cara.repositories.database import Database
-from cara.services.studies import StudyService, settings_of
+from cara.services.studies import StudyService, encoder_of, settings_of
 from cara.settings import StudySettings
 
 
@@ -252,7 +252,9 @@ class AnnotationService:
         )
 
     def _halves(self, settings: StudySettings, members: list[PoolMemberRow]) -> list[list[int]]:
-        emb_nd = self.db.datasets.embeddings(settings.encoder, [m.image_id for m in members])
+        emb_nd = self.db.datasets.embeddings(
+            encoder_of(settings, "Splitting a group"), [m.image_id for m in members]
+        )
         score_n = np.array([m.score if m.score is not None else -m.rank for m in members], dtype=np.float32)
         halves = settings.grouping.split(emb_nd, score_n, list(range(len(members))))
         return [[members[c].id for c in half] for half in halves]

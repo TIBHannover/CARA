@@ -35,6 +35,17 @@ def settings_of(study: StudyRow) -> StudySettings:
     return StudySettings.model_validate(study.settings)
 
 
+def encoder_of(settings: StudySettings, feature: str) -> str:
+    """Return the study's encoder, which `feature` needs.
+
+    Raises:
+        Conflict: The study has no encoder (`encoder: null`); the message names the feature.
+    """
+    if settings.encoder is None:
+        raise Conflict(f"{feature} needs an encoder, and this study has none")
+    return settings.encoder
+
+
 class StudyService:
     """Studies and their settings."""
 
