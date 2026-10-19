@@ -20,6 +20,23 @@ def meaning(value: float | None, scale: list[tuple[float, str]]) -> str:
     return next(label for low, label in scale if value >= low)
 
 
+def alpha_metric(alpha: float | None, scope: str) -> None:
+    """Draw Krippendorff's α as a metric card with its meaning, green once the labels are reliable.
+
+    Args:
+        scope: What α is computed over, for the help text.
+    """
+    st.metric(
+        "Krippendorff's α",
+        "–" if alpha is None else f"{alpha:.2f}",
+        delta=None if alpha is None else meaning(alpha, ALPHA),
+        delta_arrow="off",
+        delta_color="normal" if (alpha or 0) >= ALPHA[0][0] else "off",
+        border=True,
+        help=scope,
+    )
+
+
 def legend() -> None:
     """Draw a folded table of what κ and α values mean, with their sources."""
     with st.expander("How to read κ and α", icon=":material/menu_book:"):

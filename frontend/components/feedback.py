@@ -14,6 +14,11 @@ def count(n: int, noun: str) -> str:
     )
 
 
+def percent(share: float | None) -> float | None:
+    """Return a share (0 to 1) as a percentage for a table column; None stays None."""
+    return None if share is None else 100 * share
+
+
 def notify(text: str, icon: str) -> None:
     """Queue a short notification (st.toast) for an action, since a toast does not survive a rerun."""
     st.session_state.setdefault("toasts", []).append((text, icon))
