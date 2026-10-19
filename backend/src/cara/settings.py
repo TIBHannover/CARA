@@ -4,13 +4,16 @@ The API's deployment settings, from the environment, are in `cara.config`.
 """
 
 from pathlib import Path
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from cara.grouping import GroupingSettings
 from cara.grouping.agglomerative import Agglomerative
+
+ENCODER_NAME = r"^[A-Za-z0-9._:/-]+$"
+"""The characters an encoder name may use: it becomes part of an index name in the database."""
 
 
 class Frozen(BaseModel):
@@ -48,20 +51,33 @@ class PoolSettings(Frozen):
     """Which images each query is judged against.
 
     Attributes:
-        source: `knn`: the query's nearest neighbours in the corpus; `file`: the candidates in the query file.
-        k: Neighbours per pool for `knn`; None means the whole corpus, up to `max_size`. Must be None for
-            `file`.
+        source: `knn`: the query's nearest neighbours in the corpus; `file`: the candidates in the query file;
+            `random`: `k` corpus images drawn at random per query, a baseline that no encoder shapes.
+        k: Images per pool for `knn` and `random`; for `knn`, None means the whole corpus, up to `max_size`.
+            Must be None for `file`.
         max_size: The most images a pool can hold.
+        encoders: For `knn`, the encoders whose nearest neighbours are fused into one pool (reciprocal rank
+            fusion, `cara.core.fusion`); empty means the study's own encoder. Pooling with several encoders
+            keeps the pool from favouring the images one encoder likes.
+        seed: For `random`, the seed of the draws; each query draws from it and its own id.
     """
 
-    source: Literal["knn", "file"] = "knn"
+    source: Literal["knn", "file", "random"] = "knn"
     k: int | None = Field(default=200, ge=1)
     max_size: int = Field(default=1000, ge=2)
+    encoders: list[Annotated[str, Field(pattern=ENCODER_NAME)]] = Field(default_factory=list)
+    seed: int = 0
 
     @model_validator(mode="after")
-    def _k_only_for_knn(self) -> Self:
+    def _fits_source(self) -> Self:
         if self.source == "file" and self.k is not None:
-            raise ValueError(f"pool.k ({self.k}) applies to source 'knn' only; set k: null for source 'file'")
+            raise ValueError(
+                f"pool.k ({self.k}) applies to sources 'knn' and 'random'; set k: null for 'file'"
+            )
+        if self.source == "random" and self.k is None:
+            raise ValueError("pool.k is needed for source 'random': how many images to draw per query")
+        if self.encoders and self.source != "knn":
+            raise ValueError(f"pool.encoders apply to source 'knn' only, not {self.source!r}")
         return self
 
 
@@ -157,7 +173,7 @@ class StudySettings(Frozen):
 
     name: str
     labels: list[Label] = Field(min_length=2)
-    encoder: str = Field(pattern=r"^[A-Za-z0-9._:/-]+$")
+    encoder: str = Field(pattern=ENCODER_NAME)
     pool: PoolSettings = PoolSettings()
     grouping: GroupingSettings = Agglomerative(method="agglomerative")
     solo: SoloSettings = SoloSettings()

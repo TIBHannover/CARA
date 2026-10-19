@@ -4,6 +4,7 @@ A workflow labels the pool and returns the tally; the assessor decides every ind
 assessors.py).
 """
 
+import zlib
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
@@ -175,6 +176,9 @@ class Setting(Frozen):
         solo_percentile: As the study settings' `solo.percentile`.
         top_k_individual: As the study settings' `top_k_individual`.
         suggest: When set, Suggest mode replaces the grouping, which is then unused (use method `none`).
+        shuffle_groups: The random-groups baseline of the simulation study: group as usual, then deal the
+            grouped images into groups of the same sizes at random, so only whether a group's images look
+            alike changes. Images judged alone stay alone.
     """
 
     name: str
@@ -182,10 +186,22 @@ class Setting(Frozen):
     solo_percentile: float = Field(default=0.0, ge=0.0, le=100.0)
     top_k_individual: int = Field(default=0, ge=0)
     suggest: SuggestWorkflow | None = None
+    shuffle_groups: bool = False
 
     def groups(self, emb_nd: npt.NDArray[np.float32], score_n: npt.NDArray[np.float32]) -> PoolGroups:
-        """Return the pool's groups and images judged alone under this setting."""
-        return self.grouping.group(emb_nd, score_n, self.solo_percentile, self.top_k_individual)
+        """Return the pool's groups and images judged alone under this setting.
+
+        With `shuffle_groups`, the shuffle is seeded by the pool's scores, so a pool shuffles the same way
+        every time.
+        """
+        grouped = self.grouping.group(emb_nd, score_n, self.solo_percentile, self.top_k_individual)
+        if not self.shuffle_groups:
+            return grouped
+        rng = np.random.default_rng(zlib.crc32(np.ascontiguousarray(score_n).tobytes()))
+        dealt = rng.permutation([member for group in grouped.groups for member in group]).tolist()
+        bounds = np.cumsum([0] + [len(group) for group in grouped.groups])
+        groups = [dealt[start:end] for start, end in zip(bounds[:-1], bounds[1:], strict=True)]
+        return PoolGroups(groups=groups, individual=grouped.individual)
 
     def workflow(self, emb_nd: npt.NDArray[np.float32], score_n: npt.NDArray[np.float32]) -> Workflow:
         """Return the workflow for a pool: Suggest mode if set, else its groups."""

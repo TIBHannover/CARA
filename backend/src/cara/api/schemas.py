@@ -59,7 +59,19 @@ class StudyIn(BaseModel):
     query_set: str
     encoder: str
     k: int | None = Field(
-        default=None, ge=2, le=5000, description="Nearest neighbours per pool; None: the given candidates."
+        default=None,
+        ge=2,
+        le=5000,
+        description="Images per pool (nearest or random); None: the given candidates.",
+    )
+    pool: Literal["knn", "file", "random"] | None = Field(
+        default=None,
+        description="Nearest neighbours, the given candidates, or a random draw; None: `knn` with `k`, "
+        "else `file`.",
+    )
+    pool_encoders: list[str] = Field(
+        default=[],
+        description="For `knn`: more encoders whose nearest neighbours are fused with `encoder`'s.",
     )
     queries: int | None = Field(
         default=None, ge=1, description="A random sample of this many queries; None: every query."

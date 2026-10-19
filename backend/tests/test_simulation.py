@@ -7,6 +7,7 @@ import numpy.typing as npt
 from conftest import blobs
 
 from cara.grouping import PoolGroups
+from cara.grouping.agglomerative import Agglomerative
 from cara.grouping.none import NoGrouping
 from cara.simulation import (
     Grouped,
@@ -171,3 +172,17 @@ def test_suggest_workflow_judges_seeds_one_by_one_then_accepts_groups() -> None:
     # Rubber stamp accepts every suggestion: a group of suggestions never mixes labels here, so no errors.
     out, _ = run(emb, truth, score, empty, RubberStamp(kind="rubber_stamp"), OFF, rng, workflow)
     assert out.fn + out.fp == 0
+
+
+def test_shuffled_groups_keep_their_sizes_and_the_images_judged_alone() -> None:
+    emb_nd = blobs(n_blobs=4, per_blob=8)
+    score_n = emb_nd @ emb_nd[0]
+    grouping = Agglomerative(method="agglomerative", max_size=8)
+    plain = Setting(name="g", grouping=grouping, solo_percentile=10).groups(emb_nd, score_n)
+    shuffled = Setting(name="r", grouping=grouping, solo_percentile=10, shuffle_groups=True)
+    dealt = shuffled.groups(emb_nd, score_n)
+    assert [len(g) for g in dealt.groups] == [len(g) for g in plain.groups]
+    assert dealt.individual == plain.individual
+    assert sorted(m for g in dealt.groups for m in g) == sorted(m for g in plain.groups for m in g)
+    assert dealt.groups != plain.groups
+    assert shuffled.groups(emb_nd, score_n) == dealt

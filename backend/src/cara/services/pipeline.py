@@ -6,8 +6,10 @@ Creating a study, sampling its queries, building and grouping its pools, and cho
 import logging
 import random
 from pathlib import Path
+from typing import Literal
 
-from cara.db.models import Role, StudyRow
+from cara.core.fusion import reciprocal_rank_fusion
+from cara.db.models import QueryRow, Role, StudyRow
 from cara.errors import Conflict, Invalid
 from cara.grouping import scores
 from cara.repositories.database import Database
@@ -46,27 +48,38 @@ class PipelineService:
         unsure: bool,
         annotators: list[str],
         admins: list[str],
+        pool: Literal["knn", "file", "random"] | None = None,
+        pool_encoders: tuple[str, ...] = (),
     ) -> StudyRow:
         """Create a study from the New study page, with the standard labels.
 
         Args:
-            k: None pools each query with its given candidates; a number pools it with its `k` nearest images.
+            k: Images per pool for `knn` and `random` pools; None for the given candidates.
             count: How many queries to sample from the set; None takes all.
             unsure: Whether the Unsure label is offered.
+            pool: `knn`, `file` (the given candidates) or `random`; None means `knn` with `k`, else `file`.
+            pool_encoders: For `knn`, more encoders whose nearest neighbours are fused with `encoder`'s.
 
         Raises:
-            Invalid: The dataset has no such query set, or `encoder` can't pool or group it; the message says
+            Invalid: The dataset has no such query set, or an encoder can't pool or group it; the message says
                 which and that `cara encode` makes the embeddings.
         """
         info = next((s for s in self.datasets.query_sets(dataset_id) if s.name == query_set), None)
         if info is None:
             raise Invalid(f"dataset {dataset_id} has no query set {query_set!r}")
-        allowed = info.knn_encoders if k is not None else info.given_encoders
-        if encoder not in allowed:
-            how = (
-                f"pooled by nearest neighbours with {encoder}" if k is not None else f"grouped with {encoder}"
-            )
-            raise Invalid(f"query set {query_set!r} cannot be {how}; run cara encode on the dataset")
+        source = pool or ("knn" if k is not None else "file")
+        allowed = info.given_encoders if source == "file" else info.knn_encoders
+        if source == "random":
+            allowed = sorted(self.db.datasets.encoders(dataset_id))
+        for needed in (encoder, *pool_encoders) if source == "knn" else (encoder,):
+            if needed not in allowed:
+                how = {
+                    "knn": f"pooled by nearest neighbours with {needed}",
+                    "file": f"grouped with {needed}",
+                    "random": f"grouped with {needed}: the dataset has no {needed} embeddings",
+                }[source]
+                raise Invalid(f"query set {query_set!r} cannot be {how}; run cara encode on the dataset")
+        encoders = [encoder, *pool_encoders] if pool_encoders else []
         labels = [
             label.model_copy(update={"offered": unsure or label.grade is not None})
             for label in STANDARD_LABELS
@@ -75,7 +88,7 @@ class PipelineService:
             name=name,
             labels=labels,
             encoder=encoder,
-            pool=PoolSettings(source="file", k=None) if k is None else PoolSettings(source="knn", k=k),
+            pool=PoolSettings(source=source, k=None if source == "file" else k, encoders=encoders, seed=seed),
             order="similarity" if encoder in info.knn_encoders else "pool_rank",
         )
         return self.setup_study(settings, dataset_id, query_set, count, seed, annotators, tuple(admins))
@@ -93,7 +106,7 @@ class PipelineService:
         """Create a study that is ready to judge: queries sampled, pools built and grouped, people added."""
         study = self.studies.create(settings, dataset_id, query_set)
         self.add_queries(study.id, count, seed)
-        if settings.pool.source == "knn":
+        if settings.pool.source != "file":
             self.build_pools(study.id)
         self.cluster(study.id)
         for username in annotators:
@@ -148,12 +161,16 @@ class PipelineService:
         return len(chosen)
 
     def build_pools(self, study_id: int) -> None:
-        """Rebuild every pool of the study from its queries' nearest neighbours (`pool.source: knn`).
+        """Rebuild every pool of the study (`pool.source` `knn` or `random`).
+
+        `knn` takes each query's `k` nearest corpus images, fused over `pool.encoders` when there are several.
+        `random` draws `k` corpus images per query among those the study's encoder has embedded, so every
+        pool can be grouped; the draw depends only on `pool.seed` and the query, so a rebuild draws the same.
 
         Raises:
             Conflict: Judging has started, a pilot query has judgments, or `pool.source` is `file`.
-            Invalid: A query has no embedding by the study's encoder, or `pool.k` is null and the corpus is
-                larger than `pool.max_size`.
+            Invalid: A query has no embedding by a pooling encoder, `pool.k` is null and the corpus is larger
+                than `pool.max_size`, or a pooled image has no embedding by the study's encoder, which groups.
         """
         study = self._unlocked(study_id)
         settings = settings_of(study)
@@ -169,22 +186,36 @@ class PipelineService:
                 f"pool.k is null (whole corpus) but the corpus has {len(corpus)} images, more than "
                 f"pool.max_size={settings.pool.max_size}; set pool.k"
             )
+        unembedded = set(self.db.datasets.missing_embeddings(study.dataset_id, settings.encoder).values())
+        drawable = [image_id for image_id in corpus if image_id not in unembedded]
         self.db.studies.delete_pools(study_id)
         for query in self.db.studies.list_queries(study_id):
-            if settings.pool.k is None:
+            if settings.pool.source == "random":
+                k = min(settings.pool.k or len(drawable), len(drawable))
+                members = random.Random(f"{settings.pool.seed}:{query.external_id}").sample(drawable, k)
+            elif settings.pool.k is None:
                 members = corpus
-            elif (query_vec := self.datasets.query_vector(query, settings.encoder)) is None:
-                raise Invalid(
-                    f"query {query.external_id} has no {settings.encoder} embedding; "
-                    "run cara encode on its dataset"
-                )
             else:
-                nearest = self.db.datasets.nearest(
-                    study.dataset_id, settings.encoder, query_vec, settings.pool.k
+                members = self._nearest(study.dataset_id, settings, query)
+            if missing := [m for m in members if m in unembedded]:
+                raise Invalid(
+                    f"query {query.external_id}: {len(missing)} pooled images have no {settings.encoder} "
+                    "embedding, which groups them; run cara encode on the dataset with it"
                 )
-                members = [i for i, _ in nearest]
             self.db.studies.add_pool(query.id, members)
-        logger.info("built pools for study %d", study_id)
+        logger.info("built %s pools for study %d", settings.pool.source, study_id)
+
+    def _nearest(self, dataset_id: int, settings: StudySettings, query: QueryRow) -> list[int]:
+        """Return the query's `pool.k` nearest corpus images, fused over `pool.encoders` when several."""
+        k = settings.pool.k or 0
+        rankings = []
+        for encoder in settings.pool.encoders or [settings.encoder]:
+            if (query_vec := self.datasets.query_vector(query, encoder)) is None:
+                raise Invalid(
+                    f"query {query.external_id} has no {encoder} embedding; run cara encode on its dataset"
+                )
+            rankings.append([i for i, _ in self.db.datasets.nearest(dataset_id, encoder, query_vec, k)])
+        return rankings[0] if len(rankings) == 1 else reciprocal_rank_fusion(rankings, k)
 
     def cluster(self, study_id: int) -> None:
         """Group every pool of the study with its grouping settings, and store each image's score.

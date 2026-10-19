@@ -43,6 +43,8 @@ def create_study(body: StudyIn, _: SuperuserDep, pipeline: PipelineDep, studies:
         body.unsure,
         body.annotators,
         body.admins,
+        body.pool,
+        tuple(body.pool_encoders),
     )
     return _out(study, Role.ADMIN, studies)
 

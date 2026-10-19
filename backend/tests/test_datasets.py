@@ -153,3 +153,75 @@ def test_dataset_files_report_where_they_are_wrong(tmp_path: Path) -> None:
     np.savez(embeddings, emb_nd=np.ones((2, 2)))
     with pytest.raises(ValueError, match="missing \\['ids'\\]"):
         read_embeddings(embeddings)
+
+
+def test_pools_fused_from_two_encoders_take_neighbours_of_both(
+    clean: sessionmaker[Session], tmp_path: Path
+) -> None:
+    folder = _dataset_folder(tmp_path)
+    # "alt" sees every query as the next blob: blob b's query lands among blob b + 1's images.
+    corpus = np.load(folder / "index" / SETTINGS.encoder / "corpus.npz")
+    emb_nd, ids = corpus["emb_nd"], corpus["ids"]
+    alt_nd = emb_nd.copy()
+    alt_nd[30:] = emb_nd[[10, 20, 0]]
+    (folder / "index" / "alt").mkdir()
+    np.savez(folder / "index" / "alt" / "corpus.npz", ids=ids, emb_nd=alt_nd)
+    fused = PoolSettings(source="knn", k=10, encoders=[SETTINGS.encoder, "alt"])
+    with clean.begin() as session:
+        db = Database(session)
+        dataset_id = DatasetService(db).add_folder(folder, None, None, None).id
+        PipelineService(db).setup_study(
+            SETTINGS.model_copy(update={"pool": fused}), dataset_id, "image", None, 0, []
+        )
+        for pool in db.studies.list_pools(1):
+            blob = int(pool.query.external_id[1])
+            blobs_seen = {int(m.image.external_id[1:]) // 10 for m in pool.members}
+            assert len(pool.members) == 10 and blobs_seen == {blob, (blob + 1) % 3}
+
+
+def test_random_pools_are_reproducible_and_never_given_candidates(
+    clean: sessionmaker[Session], tmp_path: Path
+) -> None:
+    drawn = PoolSettings(source="random", k=7, seed=3)
+    with clean.begin() as session:
+        db = Database(session)
+        dataset_id = DatasetService(db).add_folder(_dataset_folder(tmp_path), None, None, None).id
+        pipeline = PipelineService(db)
+        pipeline.setup_study(SETTINGS.model_copy(update={"pool": drawn}), dataset_id, "image", None, 0, [])
+        first = [[m.image_id for m in p.members] for p in db.studies.list_pools(1)]
+        pipeline.build_pools(1)
+        assert [[m.image_id for m in p.members] for p in db.studies.list_pools(1)] == first
+        corpus = set(db.datasets.corpus_ids(dataset_id))
+        assert all(len(members) == 7 and set(members) <= corpus for members in first)
+        assert len({tuple(members) for members in first}) == 3
+        pipeline.setup_study(
+            SETTINGS.model_copy(update={"name": "other seed", "pool": drawn.model_copy(update={"seed": 4})}),
+            dataset_id,
+            "image",
+            None,
+            0,
+            [],
+        )
+        assert [[m.image_id for m in p.members] for p in db.studies.list_pools(2)] != first
+    with pytest.raises(ValueError, match="pool.k is needed"):
+        PoolSettings(source="random", k=None)
+    with pytest.raises(ValueError, match="knn' only"):
+        PoolSettings(source="file", k=None, encoders=["a", "b"])
+
+
+def test_the_dashboard_creates_random_pools_and_checks_pooling_encoders(client: TestClient) -> None:
+    root = login(client, "root")
+    [toy] = client.get("/datasets", headers=root).json()
+    body = {"name": "drawn", "dataset_id": toy["id"], "query_set": "default", "encoder": SETTINGS.encoder}
+    created = client.post("/studies", json=body | {"pool": "random", "k": 5}, headers=root)
+    assert created.status_code == 201
+    assert created.json()["name"] == "drawn"
+    assert created.json()["settings"]["pool"] | {"seed": 0} == {
+        "source": "random",
+        "k": 5,
+        "max_size": 1000,
+        "encoders": [],
+        "seed": 0,
+    }
+    fused = body | {"name": "fused", "k": 6, "pool_encoders": ["missing"]}
+    assert client.post("/studies", json=fused, headers=root).status_code == 422
