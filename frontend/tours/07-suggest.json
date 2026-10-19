@@ -1,0 +1,35 @@
+{
+  "name": "suggest",
+  "page": "Judge page, Suggest mode (annotators)",
+  "when": "Accepting or correcting suggested labels.",
+  "steps": [
+    {
+      "element": null,
+      "title": "Suggest mode",
+      "text": "Images you marked one by one are starting points. Images similar to them get the same label as a suggestion. A suggestion is not a label until you accept it."
+    },
+    {
+      "element": ".cara-legend",
+      "title": "What the frames mean",
+      "text": "Each frame colour is a suggested label; grey means no suggestion."
+    },
+    {
+      "element": "[class*=\"st-key-sughead-\"]",
+      "title": "An image you marked",
+      "text": "Its label, and how many unjudged images are similar to it."
+    },
+    {
+      "element": "[class*=\"st-key-sugbar-\"][class*=\"-labels\"]",
+      "title": "Label the whole group",
+      "text": "Any button marks every image in the group. The dashed one is the suggestion."
+    },
+    {
+      "element": "[class*=\"st-key-cell-sug-\"]",
+      "title": "Or decide image by image",
+      "text": "The buttons under an image set its own label."
+    },
+    {
+      "use": "end"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "study-page",
+  "page": "Study page, Annotation tab (admins)",
+  "when": "Starting annotation and fixing the grouping.",
+  "steps": [
+    {
+      "use": "tabs"
+    },
+    {
+      "element": ".st-key-section-study-start",
+      "title": "Start annotation",
+      "text": "Assigns every query that is not a pilot query to the chosen annotators. They see the queries in their queue at once."
+    },
+    {
+      "element": ".st-key-section-grouping",
+      "title": "Grouping",
+      "text": "How the images are grouped. The simulation compares options; the first judgment fixes them."
+    }
+  ]
+}

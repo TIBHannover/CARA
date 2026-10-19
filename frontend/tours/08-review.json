@@ -1,0 +1,22 @@
+{
+  "name": "review",
+  "page": "Judge page, Review mode (annotators)",
+  "when": "Checking every label of a judged query.",
+  "steps": [
+    {
+      "element": "[class*=\"st-key-head-panel-\"]",
+      "title": "One column per label",
+      "text": "Every image of this query sits under its label. Relevant and Unsure start with the images most similar to the query; Not Relevant starts with those most similar to the Relevant images, where a missed Relevant image is most likely."
+    },
+    {
+      "element": "[class*=\"st-key-tile-\"]",
+      "title": "Move an image to relabel it",
+      "text": "Drag an image by its border into another column, or use its label buttons. The change is saved at once."
+    },
+    {
+      "element": ".st-key-done-review",
+      "title": "Finish",
+      "text": "When every column looks right, mark the query as reviewed."
+    }
+  ]
+}

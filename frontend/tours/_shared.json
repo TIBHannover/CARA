@@ -1,0 +1,50 @@
+{
+  "query": [
+    {
+      "element": ".st-key-query-panel",
+      "title": "The query",
+      "text": "Judge every image on the right against this query: an image, a text or both. The bar shows how many images are done."
+    }
+  ],
+  "image": [
+    {
+      "element": "[class*=\"st-key-item-\"][class*=\"-labels\"]",
+      "title": "Label a single image",
+      "text": "The buttons under an image label just that image, also inside a labelled group."
+    },
+    {
+      "element": "[class*=\"st-key-item-\"][class*=\"-compare\"]",
+      "title": "Look closer",
+      "text": "Compare the image with the query side by side, and see it among its group or the images most like it."
+    }
+  ],
+  "end": [
+    {
+      "element": "[class*=\"st-key-mode-\"]",
+      "title": "Judge, then review",
+      "text": "Once every image has a label, Review shows them sorted by label to check and fix."
+    },
+    {
+      "element": ".st-key-cols_slider",
+      "title": "Image size",
+      "text": "Fewer images per row make them bigger."
+    },
+    {
+      "element": ".st-key-next-query",
+      "title": "Next query",
+      "text": "Moves on to your next unfinished query."
+    },
+    {
+      "element": ".st-key-tour-button",
+      "title": "Tour",
+      "text": "Starts this tour again, any time."
+    }
+  ],
+  "tabs": [
+    {
+      "element": ".st-key-tab",
+      "title": "The steps of a study",
+      "text": "Pilot and its results (optional, recommended), simulation, annotation, progress and results. Open any tab at any time."
+    }
+  ]
+}

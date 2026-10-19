@@ -1,0 +1,42 @@
+{
+  "name": "simulator",
+  "page": "Study page, Simulation tab (admins)",
+  "when": "Comparing grouping settings before annotation.",
+  "steps": [
+    {
+      "element": null,
+      "title": "Settings simulator",
+      "text": "Compare ways of grouping the images on this study's own queries, before anyone judges: what each costs in time and how many relevant images it keeps."
+    },
+    {
+      "element": ".st-key-section-labels",
+      "title": "1 · Ground truth",
+      "text": "Your pilot judgments (choose whose count) or a qrels file."
+    },
+    {
+      "element": ".st-key-section-annotators",
+      "title": "2 · Simulated annotators",
+      "text": "Switch on the types to simulate; Adjust sets their accuracy and speed."
+    },
+    {
+      "element": ".st-key-section-settings",
+      "title": "3 · Grouping methods",
+      "text": "Every combination of the values is one setting."
+    },
+    {
+      "element": ".st-key-section-run",
+      "title": "4 · Summary",
+      "text": "What will run, and how many queries to replay."
+    },
+    {
+      "element": ".st-key-section-results",
+      "title": "5 · Results",
+      "text": "Time against recall for each annotator type. Settings on the front are not beaten on both."
+    },
+    {
+      "element": ".st-key-section-apply",
+      "title": "Choose a setting",
+      "text": "Compare it with one image at a time, then use it in the Annotation tab."
+    }
+  ]
+}

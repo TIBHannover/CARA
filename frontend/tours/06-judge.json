@@ -1,0 +1,61 @@
+{
+  "name": "judge",
+  "page": "Judge page, Judge mode (annotators)",
+  "when": "Judging a query group by group.",
+  "steps": [
+    {
+      "use": "query"
+    },
+    {
+      "element": ".st-key-browse-queries",
+      "title": "Your queries",
+      "text": "Jump to any of your queries. They come in your own order; pilot queries come first."
+    },
+    {
+      "element": ".cara-groups",
+      "title": "Every group at a glance",
+      "text": "Jump to any group; the number is how many images it holds."
+    },
+    {
+      "element": "[class*=\"st-key-box-open-\"]:not([class*=\"-solo\"])",
+      "title": "Groups of similar images",
+      "text": "Images that look alike are grouped, so one decision often covers many of them."
+    },
+    {
+      "element": "[class*=\"st-key-group-\"][class*=\"-labels\"]",
+      "title": "Label a whole group",
+      "text": "One click gives every image in the group this label. Images you labelled on their own keep their label."
+    },
+    {
+      "element": "[class*=\"st-key-split-\"]",
+      "title": "Mixed group?",
+      "text": "Split it in two and label each half."
+    },
+    {
+      "element": "[class*=\"st-key-toggle-open-\"]",
+      "title": "Fold a group",
+      "text": "Hides or shows the images of this group."
+    },
+    {
+      "use": "image"
+    },
+    {
+      "element": "[class*=\"st-key-box-open-\"][class*=\"-solo\"]",
+      "title": "Judge one by one",
+      "text": "Below the groups: images unlike any other, judged on their own with the buttons under each."
+    },
+    {
+      "element": "[class*=\"st-key-collapse-\"]",
+      "title": "Collapse judged",
+      "text": "Folds every fully judged group at once; switch it off to unfold them again."
+    },
+    {
+      "element": ".st-key-undo-split",
+      "title": "Undo split",
+      "text": "Merges back the last group you split."
+    },
+    {
+      "use": "end"
+    }
+  ]
+}

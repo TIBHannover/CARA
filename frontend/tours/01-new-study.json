@@ -1,0 +1,37 @@
+{
+  "name": "new-study",
+  "page": "New study (superusers)",
+  "when": "Setting up a study: dataset, queries, pools, labels, people.",
+  "steps": [
+    {
+      "element": ".st-key-section-new-dataset",
+      "title": "1 · Dataset",
+      "text": "A dataset added on the command line."
+    },
+    {
+      "element": ".st-key-section-new-encoding",
+      "title": "2 · Encoding",
+      "text": "Which encoders have embedded the images and queries, and the command for what is missing."
+    },
+    {
+      "element": ".st-key-section-new-queries",
+      "title": "3 · Queries",
+      "text": "One of its query sets: image, text or image + text queries, all or a random sample."
+    },
+    {
+      "element": ".st-key-section-new-pools",
+      "title": "4 · Encoder and pools",
+      "text": "Choose an encoder, or none to judge every image on its own. Each query is judged against its given candidates, its k most similar images (from one encoder or several, fused), or a random sample of the collection."
+    },
+    {
+      "element": ".st-key-section-new-labels",
+      "title": "5 · Labels",
+      "text": "Relevant and Not Relevant; Unsure is optional."
+    },
+    {
+      "element": ".st-key-section-new-people",
+      "title": "6 · Name and people",
+      "text": "Annotators judge, other admins help manage. Creating the study builds and groups the pools; the pilot comes next."
+    }
+  ]
+}

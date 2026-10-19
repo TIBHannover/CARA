@@ -1,0 +1,20 @@
+{
+  "name": "pilot-page",
+  "page": "Study page, Pilot tab (admins)",
+  "when": "Choosing the pilot queries and who judges them.",
+  "steps": [
+    {
+      "use": "tabs"
+    },
+    {
+      "element": ".st-key-section-pilot-setup",
+      "title": "Choose the pilot",
+      "text": "A few queries that annotators judge image by image, before the grouping is fixed. Two annotators per query show how far they agree. Until the study starts, annotators see only these queries."
+    },
+    {
+      "element": "[data-testid=\"stDataFrame\"]",
+      "title": "Follow it",
+      "text": "How far each pilot annotator has got. Once a pilot query is judged, the simulator can use it."
+    }
+  ]
+}

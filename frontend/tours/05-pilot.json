@@ -1,0 +1,26 @@
+{
+  "name": "pilot",
+  "page": "Judge page, a pilot query (annotators)",
+  "when": "Judging a pilot query one image at a time.",
+  "steps": [
+    {
+      "use": "query"
+    },
+    {
+      "element": "[class*=\"st-key-box-open-\"][class*=\"-solo\"]",
+      "title": "A pilot query: one image at a time",
+      "text": "Pilot queries are not grouped: judge every image on its own. These judgments show how well grouping would work for the rest of the study, so take your time."
+    },
+    {
+      "use": "image"
+    },
+    {
+      "element": "[class*=\"st-key-collapse-\"]",
+      "title": "Collapse judged",
+      "text": "Hides the images once all of them are judged; switch it off to see them again."
+    },
+    {
+      "use": "end"
+    }
+  ]
+}
