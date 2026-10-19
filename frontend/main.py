@@ -5,7 +5,6 @@ import streamlit as st
 
 import styles
 from client import ApiError, AuthError, CaraClient, QueueItem, Study
-from components import setup_guide
 from components.feedback import count
 from components.study.tabs import KEY as TAB_KEY
 from components.study.tabs import first_tab
@@ -170,14 +169,17 @@ def new_study_card() -> None:
 
 
 def studies() -> None:
-    """Draw the Studies page: the setup guide until the first study exists, then the study cards."""
+    """Draw the Studies page: the study cards, with New study for superusers."""
     every = client().studies()
     datasets = client().datasets() if st.session_state.is_superuser else None
     st.title("Studies")
-    set_up = datasets is not None and bool(every)
-    if datasets is not None and not set_up:
-        setup_guide.render(datasets, bool(every))
-    elif not every:
+    if datasets == []:
+        st.info(
+            "No dataset yet. Datasets are added on the command line: `cara dataset-add /data/<folder>` "
+            "(README, *Your own data*).",
+            icon=":material/dataset:",
+        )
+    elif not every and datasets is None:
         st.info("You are not part of any study yet. Ask an admin to add you.")
     names = sorted({study.dataset for study in every})
     shown = every

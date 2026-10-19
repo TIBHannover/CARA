@@ -6,7 +6,7 @@ import styles
 from components import queries, query_panel, tours
 from components.feedback import show_toasts
 from components.judging import judging
-from components.modes import grouped, review, suggest
+from components.modes import MODES, grouped, tour
 from state import thumbnail_store, thumbnails
 
 ctx = judging()
@@ -30,16 +30,11 @@ thumbs = thumbnails(
 )
 
 with right:
-    if mode == "Review":
-        review.render(ctx, view, thumbs)
-    elif mode == "Suggest":
-        suggest.render(ctx, view, thumbs)
-    else:
-        grouped.render(ctx, view, thumbs)
+    MODES[mode].render(ctx, view, thumbs)
 
 if following is not None:
     thumbnail_store().prefetch_query(
         ctx.token, ctx.study.id, following.query_id, settings.display.thumb_px, settings.display.query_px
     )
 
-tours.judge(mode, view.is_pilot)
+tours.show(tour(mode, view))
