@@ -4,13 +4,18 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from cara.db.models import (
+    ActionRow,
+    AdjudicationRow,
+    AssignmentRow,
     DatasetQueryRow,
+    JudgmentRow,
     LabelRow,
     PoolMemberRow,
     PoolRow,
     QueryRow,
     StudyMemberRow,
     StudyRow,
+    action_members,
 )
 from cara.repositories.base import Repository
 from cara.settings import StudySettings
@@ -86,6 +91,29 @@ class Studies(Repository[StudyRow]):
         """Delete every pool of the study, and their members with them."""
         query_ids = select(QueryRow.id).where(QueryRow.study_id == study_id)
         self.session.execute(delete(PoolRow).where(PoolRow.query_id.in_(query_ids)))
+
+    def delete_study(self, study_id: int) -> None:
+        """Delete the study and everything recorded in it, children first.
+
+        Its judgments, actions, adjudications, assignments, pools, queries, labels and members go with it;
+        the dataset, its images and the accounts stay.
+        """
+        query_ids = select(QueryRow.id).where(QueryRow.study_id == study_id)
+        member_ids = select(PoolMemberRow.id).join(PoolRow).where(PoolRow.query_id.in_(query_ids))
+        action_ids = select(ActionRow.id).where(ActionRow.query_id.in_(query_ids))
+        for statement in (
+            delete(action_members).where(action_members.c.action_id.in_(action_ids)),
+            delete(ActionRow).where(ActionRow.query_id.in_(query_ids)),
+            delete(AdjudicationRow).where(AdjudicationRow.pool_member_id.in_(member_ids)),
+            delete(JudgmentRow).where(JudgmentRow.pool_member_id.in_(member_ids)),
+            delete(AssignmentRow).where(AssignmentRow.query_id.in_(query_ids)),
+            delete(PoolRow).where(PoolRow.query_id.in_(query_ids)),
+            delete(QueryRow).where(QueryRow.study_id == study_id),
+            delete(LabelRow).where(LabelRow.study_id == study_id),
+            delete(StudyMemberRow).where(StudyMemberRow.study_id == study_id),
+            delete(StudyRow).where(StudyRow.id == study_id),
+        ):
+            self.session.execute(statement)
 
     def add_pool(self, query_id: int, image_ids: list[int]) -> None:
         """Add a query's pool, ranked in the order of `image_ids`, without groups yet."""

@@ -40,3 +40,21 @@ def test_label_colours_and_short_names_stay_editable(client: TestClient) -> None
     new["labels"][0] |= {"colour": "#123456", "short": "Y"}
     response = client.put("/studies/1/settings", json=new, headers=login(client, "root"))
     assert response.status_code == 200 and response.json()["settings"]["labels"][0]["short"] == "Y"
+
+
+def test_only_superusers_delete_a_study_with_everything_in_it(client: TestClient) -> None:
+    ann, root = login(client, "ann"), login(client, "root")
+    group = [
+        m["member_id"] for m in client.get("/studies/1/queries/1", headers=ann).json()["groups"][0]["members"]
+    ]
+    body = {"member_ids": group, "label": "yes", "source": "group"}
+    assert client.post("/studies/1/queries/1/judgments", headers=ann, json=body).status_code == 204
+    assert (
+        client.post("/studies/1/queries/1/split", headers=ann, json={"member_ids": group}).status_code == 200
+    )
+    assert client.delete("/studies/1", headers=ann).status_code == 403
+    assert client.delete("/studies/1", headers=root).status_code == 204
+    assert client.get("/studies/1", headers=root).status_code == 404
+    assert client.get("/studies", headers=root).json() == []
+    assert [d["name"] for d in client.get("/datasets", headers=root).json()] == ["toy"]
+    assert client.delete("/studies/1", headers=root).status_code == 404

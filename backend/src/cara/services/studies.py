@@ -62,6 +62,15 @@ class StudyService:
         """
         return self.db.studies.get(study_id)
 
+    def delete(self, study_id: int) -> None:
+        """Delete the study with every judgment in it; the dataset and the accounts stay.
+
+        Raises:
+            NotFound: The study doesn't exist.
+        """
+        self.get(study_id)
+        self.db.studies.delete_study(study_id)
+
     def list_for(self, user: UserRow) -> list[StudyRow]:
         """Return the studies the person may open: every study for a superuser, else those they belong to."""
         return self.db.studies.list_all() if user.is_superuser else self.db.studies.list_for_member(user.id)

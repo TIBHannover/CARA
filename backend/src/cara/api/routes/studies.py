@@ -59,6 +59,12 @@ def get_study(study_id: int, role: StudyRoleDep, studies: StudiesDep) -> StudyOu
     return _out(studies.get(study_id), role, studies)
 
 
+@router.delete("/{study_id}", status_code=204)
+def delete_study(study_id: int, _: SuperuserDep, studies: StudiesDep) -> None:
+    """Delete a study and every judgment in it (superusers); the dataset and the accounts stay."""
+    studies.delete(study_id)
+
+
 @router.put("/{study_id}/settings")
 def update_settings(
     study_id: int, settings: StudySettings, role: StudyAdminDep, studies: StudiesDep
