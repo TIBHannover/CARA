@@ -114,15 +114,14 @@ def render_group(
     # ":solo" lets the tour tell the one-by-one section from the groups.
     with st.container(border=True, key=f"box:{shown_key}" + (":solo" if position is None else "")):
         with st.container(horizontal=True, vertical_alignment="center", key=f"head:{shown_key}"):
-            title = "Judge one by one" if position is None else f"Group {position}"
+            title = "Ungrouped" if position is None else f"Group {position}"
             counts = Counter(label for m in member_ids if (label := labels[m][0]) is not None)
             summary = "" if shown else " · " + " ".join(f"{ctx.icon_of[n]} {c}" for n, c in counts.items())
             # Taller than the box's height cap (styles.judge_page): the rest is a scroll inside the box.
             more = " · scroll for all" if shown and len(members) > 3 * st.session_state.cols else ""
             anchor = f'<span id="{group_anchor(position)}" class="cara-anchor"></span>'
             st.markdown(
-                f"{anchor}**{title}** ({count(len(members), 'image')}) "
-                f":gray[· {judged} judged{summary}{more}]",
+                f"{anchor}**{title}** ({judged}/{count(len(members), 'image')} judged):gray[{summary}{more}]",
                 unsafe_allow_html=True,
             )
             st.space("stretch")
@@ -211,7 +210,7 @@ def group_navigator(ctx: Judging, groups: list[list[int]], individual: int) -> N
     """Draw one link per group with its size, above the groups, and how the groups are ordered."""
     parts = [(group_anchor(p), f"Group {p}", len(g)) for p, g in enumerate(groups, start=1)]
     if individual:
-        parts.append((group_anchor(None), "One by one", individual))
+        parts.append((group_anchor(None), "Ungrouped", individual))
     if not groups:  # a pilot query: nothing is grouped
         return
     links = "".join(f'<a href="#{a}">{name} <span>({n})</span></a>' for a, name, n in parts)

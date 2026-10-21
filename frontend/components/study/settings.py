@@ -125,7 +125,7 @@ def render(api: CaraClient, study: Study) -> None:
                     )
             with st.container(horizontal=True):
                 solo = st.number_input(
-                    "Judge one by one: images without a close neighbour (percentile)",
+                    "Ungrouped: images without a close neighbour (percentile)",
                     0.0,
                     50.0,
                     proposal.solo_percentile if proposal else settings.solo.percentile,
@@ -133,7 +133,7 @@ def render(api: CaraClient, study: Study) -> None:
                     disabled=locked,
                 )
                 top_k = st.number_input(
-                    "Judge one by one: the images most similar to the query",
+                    "Ungrouped: the images most similar to the query",
                     0,
                     200,
                     proposal.top_k_individual if proposal else settings.top_k_individual,

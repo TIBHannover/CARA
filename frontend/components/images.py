@@ -72,7 +72,7 @@ def context(ctx: Judging, view: QueryView, member: Member, source: str) -> None:
         if st.button("Done", icon=":material/check:", type="primary"):
             st.rerun()
     if not group:
-        st.caption("This image is judged one by one, not in a group.")
+        st.caption("This image is ungrouped: it is judged on its own.")
     if shown == original and group:
         ids = [m for m in group if m != member.member_id]
     else:
