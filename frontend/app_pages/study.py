@@ -6,6 +6,7 @@ from components.feedback import show_toasts
 from components.study import (
     agreement,
     exports,
+    guidelines,
     header,
     pilot,
     pilot_results,
@@ -39,6 +40,8 @@ match tab:
         pilot.render(api, study)
     case "Pilot results":
         pilot_results.render(api, study)
+    case "Guidelines":
+        guidelines.render(api, study)
     case "Simulation":
         simulation.render(api, study)
     case "Annotation":

@@ -4,10 +4,11 @@ import streamlit as st
 
 from client import Study
 
-TABS = ["Pilot", "Pilot results", "Simulation", "Annotation", "Progress", "Results"]
+TABS = ["Pilot", "Pilot results", "Guidelines", "Simulation", "Annotation", "Progress", "Results"]
 ICONS = {
     "Pilot": ":material/science:",
     "Pilot results": ":material/insights:",
+    "Guidelines": ":material/menu_book:",
     "Simulation": ":material/tune:",
     "Annotation": ":material/photo_library:",
     "Progress": ":material/monitoring:",

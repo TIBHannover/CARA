@@ -63,6 +63,9 @@ def test_first_judgment_locks_pools_and_grouping(client: TestClient, clean: sess
     assert study["locked"]
     changed = {**study["settings"], "grouping": {"method": "kmeans"}}
     assert client.put("/studies/1/settings", json=changed, headers=headers).status_code == 409
+    example = {"member_id": 1, "image_id": 1, "label": "no", "note": "Only the frame matches."}
+    guided = {**study["settings"], "guidelines": {"text": "Judge the object.", "examples": [example]}}
+    assert client.put("/studies/1/settings", json=guided, headers=headers).status_code == 200
     with clean.begin() as session, pytest.raises(Conflict):
         PipelineService(Database(session)).cluster(1)
 

@@ -73,6 +73,24 @@ class Solo(Model):
     percentile: float
 
 
+class Example(Model):
+    """An example in the annotation guidelines (`cara.settings.Example`)."""
+
+    member_id: int
+    image_id: int
+    query_image_id: int | None = None
+    query_text: str | None = None
+    label: str
+    note: str = ""
+
+
+class Guidelines(Model):
+    """What annotators read: Markdown text and examples (`cara.settings.Guidelines`)."""
+
+    text: str = ""
+    examples: list[Example] = []
+
+
 class Settings(Model):
     """A study's settings (`cara.settings.StudySettings`), sent back whole when an admin saves them."""
 
@@ -93,6 +111,7 @@ class Settings(Model):
     annotators_per_query: int
     display: Display
     suggest: Suggest = Suggest()
+    guidelines: Guidelines = Guidelines()
 
 
 class SuggestedCluster(Model):

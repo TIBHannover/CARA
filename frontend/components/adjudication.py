@@ -11,6 +11,7 @@ import streamlit as st
 
 import styles
 from client import AgreementReport, CaraClient, JudgedItem, Label, QueryAgreement, Study
+from components import guidelines
 from components.feedback import count
 from components.images import frame_suffix, images_per_row, show_query, tint_toggle
 from components.labels import label_buttons
@@ -102,6 +103,7 @@ def final_labels(api: CaraClient, study: Study, report: AgreementReport) -> None
 
     left, right = st.columns([1, 4], gap="medium")
     with left, st.container(key="query-panel", border=True):
+        guidelines.button(study)
         ids = list(by_id)
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small"):
             query_id = st.selectbox(

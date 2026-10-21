@@ -121,6 +121,9 @@ def judge_page() -> None:
         ".cara-anchor{scroll-margin-top:5.5rem;}"
         # Adjudication: each annotator's label under an image, in the label's colour.
         ".cara-votes{display:flex;flex-wrap:wrap;gap:0 0.6rem;font-size:0.8rem;line-height:1.3;}"
+        # Guidelines: an example's label, in the label's colour.
+        ".cara-badge{display:inline-block;padding:0 0.5rem;border:1.5px solid;border-radius:1rem;"
+        "font-size:0.8rem;font-weight:600;}"
         ".cara-groups{display:flex;flex-wrap:wrap;gap:0.4rem;}"
         ".cara-groups a{padding:0.15rem 0.6rem;border:1px solid #E4E4E7;border-radius:1rem;"
         "background:#FFFFFF;color:inherit;text-decoration:none;font-size:0.85rem;}"
@@ -130,7 +133,7 @@ def judge_page() -> None:
         # Judge mode's image grids: "Images per row" is one variable (set by the slider), so changing it
         # rebuilds no element.
         '[class*="st-key-grid-"]{display:grid !important;gap:1rem 0.75rem;'
-        "grid-template-columns:repeat(var(--cara-cols),minmax(0,1fr));}"
+        "grid-template-columns:repeat(var(--cara-cols,5),minmax(0,1fr));}"
         # Buttons under each image: the label buttons share the row. Icons and buttons scale with the tile's
         # width (container query units), so many images per row still fit one row of usable buttons.
         '[class*="st-key-cell-"],[class*="st-key-tile-"]{container-type:inline-size;}'

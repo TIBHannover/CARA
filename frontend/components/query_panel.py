@@ -3,6 +3,7 @@
 import streamlit as st
 
 from client import QueryView, QueueItem
+from components import guidelines
 from components.images import images_per_row, show_query, tint_toggle
 from components.judging import Judging, collapse_key, collapsed, load, state
 from components.modes import MODES, offered
@@ -28,6 +29,7 @@ def render(
 
     with st.container(key="query-panel", border=True):
         st.caption(ctx.study.name)
+        guidelines.button(ctx.study)
         query_ids = list(by_id)
         st.session_state[PICKER] = st.session_state.query_id
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key="query-select"):

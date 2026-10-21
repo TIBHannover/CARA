@@ -152,6 +152,34 @@ class DisplaySettings(Frozen):
     group_order: Literal["similarity", "similarity_asc", "size", "size_asc"] = "similarity"
 
 
+class Example(Frozen):
+    """An example in the annotation guidelines: a judged pool image, the label it should get, and why.
+
+    The query's image and text are kept with it, so annotators see the example whatever queries they have.
+
+    Attributes:
+        member_id: The pool image (member) the example shows.
+        image_id: Its image.
+        query_image_id: The image of the query it was judged for, if the query has one.
+        query_text: The text of that query, if it has one.
+        note: Why the image gets the label, in a sentence or two.
+    """
+
+    member_id: int
+    image_id: int
+    query_image_id: int | None = None
+    query_text: str | None = None
+    label: str
+    note: str = ""
+
+
+class Guidelines(Frozen):
+    """What annotators read before and while judging: Markdown text and examples, typically from the pilot."""
+
+    text: str = ""
+    examples: list[Example] = Field(default_factory=list)
+
+
 class StudySettings(Frozen):
     """A study's settings: its labels, pools, grouping, review, display and Suggest mode.
 
@@ -171,6 +199,7 @@ class StudySettings(Frozen):
         query_order: `shuffled`: each annotator gets the queries in their own fixed random order, which avoids
             order effects; `listed`: everyone in the order of the query file.
         annotators_per_query: How many annotators judge each annotation query.
+        guidelines: What annotators read; it can change at any time.
         demo: Whether this is a sample study to try the tool on, listed apart below the real studies.
     """
 
@@ -187,6 +216,7 @@ class StudySettings(Frozen):
     annotators_per_query: int = Field(default=1, ge=1)
     display: DisplaySettings = DisplaySettings()
     suggest: SuggestSettings = SuggestSettings()
+    guidelines: Guidelines = Guidelines()
     demo: bool = False
 
     @model_validator(mode="after")
@@ -238,7 +268,9 @@ STANDARD_LABELS = (
 )
 """The labels of a study created on the New study page."""
 
-EDITABLE_AFTER_LOCK = frozenset({"name", "annotators_per_query", "display", "query_order", "demo", "suggest"})
+EDITABLE_AFTER_LOCK = frozenset(
+    {"name", "annotators_per_query", "display", "query_order", "demo", "suggest", "guidelines"}
+)
 """The study settings that can still change after the first judgment."""
 
 
