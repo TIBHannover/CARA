@@ -83,4 +83,3 @@ def require_adjudicator(role: Annotated[Role, Depends(get_study_role)]) -> Role:
 
 StudyRoleDep = Annotated[Role, Depends(get_study_role)]
 StudyAdminDep = Annotated[Role, Depends(require_admin)]
-StudyAnnotatorDep = Annotated[Role, Depends(require_annotator)]

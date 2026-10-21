@@ -46,12 +46,6 @@ def section(name: str, title: str, expanded: bool = True) -> DeltaGenerator:
     return st.expander(f"**{title}**", expanded=expanded, key=f"section-{name}")
 
 
-def heading(title: str, study_name: str) -> None:
-    """Draw a page title with the study it acts on above it, so an admin never changes the wrong study."""
-    st.caption(f":material/folder_open: Study · **{study_name}**")
-    st.title(title)
-
-
 def base() -> None:
     """Add the CSS every page shares: the page and card colours, font, top bar and Tour button."""
     st.html(
