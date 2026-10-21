@@ -13,7 +13,7 @@ from components.simulator.run import SimulationRun
 
 DEFINITIONS = """
 - **Groups / query**: groups an annotator sees for one query, on average.
-- **Judged one by one**: share of the images outside any group: images without a close neighbour, the images
+- **Ungrouped**: share of the images outside any group: images without a close neighbour, the images
   most similar to the query (top k), and images the method leaves ungrouped.
 - **Min. actions / image**: one action per group plus one per individually judged image, divided by the
   number of images; the fewest possible, reached only if every group is all relevant or all not relevant.
@@ -267,11 +267,11 @@ def _settings_table(shown: list[SettingView], images: int) -> None:
             "parameters": st.column_config.TextColumn(
                 "Parameters",
                 help="max: largest group; k: number of groups; min: smallest group; no close neighbour: "
-                "percentile of images judged one by one for lack of a close neighbour; top: images most "
-                "similar to the query judged one by one",
+                "percentile of images left ungrouped for lack of a close neighbour; top: images most "
+                "similar to the query, left ungrouped",
             ),
             "groups": number("Groups / query", format="%.1f"),
-            "individual": number("Judged one by one", format="%.1f %%"),
+            "individual": number("Ungrouped", format="%.1f %%"),
             "lower bound": number("Min. actions / image", format="%.2f"),
             "actions": number("Actions / image", format="%.2f"),
             "min seconds": number("Min. time / image (s)", format="%.2f"),

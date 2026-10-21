@@ -110,8 +110,8 @@ class Field:
 
 # How a realistic annotator judges (simulation.Realistic) and how long each action takes (TimeModel).
 ACCURACY = [
-    Field("acc_relevant", "Accuracy on relevant images", 0.5, 1.0, 0.01, slider=True),
-    Field("acc_nonrelevant", "Accuracy on non-relevant images", 0.5, 1.0, 0.01, slider=True),
+    Field("acc_relevant", "Accuracy on Relevant images", 0.5, 1.0, 0.01, slider=True),
+    Field("acc_nonrelevant", "Accuracy on Not Relevant images", 0.5, 1.0, 0.01, slider=True),
     Field(
         "full_inspection_size",
         "Groups looked at image by image up to (images)",
@@ -129,8 +129,8 @@ TIMES = [
     Field("group_action_s", "Labelling a group", 0.5, 30.0, 0.5),
     Field("override_s", "Correcting an image", 0.1, 30.0, 0.1),
     Field("split_s", "Splitting a group", 0.1, 30.0, 0.1),
-    Field("browse_relevant_s", "Looking at a relevant image in a group", 0.0, 10.0, 0.1),
-    Field("browse_nonrelevant_s", "Looking at a non-relevant image in a group", 0.0, 10.0, 0.1),
+    Field("browse_relevant_s", "Looking at a Relevant image in a group", 0.0, 10.0, 0.1),
+    Field("browse_nonrelevant_s", "Looking at a Not Relevant image in a group", 0.0, 10.0, 0.1),
 ]
 
 
@@ -177,7 +177,7 @@ class Kind:
             if self.realistic:
                 st.markdown(
                     f"**{self.value('acc_relevant'):.0%}** · **{self.value('acc_nonrelevant'):.0%}** correct",
-                    help="on relevant · non-relevant images",
+                    help="on Relevant · Not Relevant images",
                 )
             else:
                 st.markdown("No errors" if self.model == "perfect" else "No corrections")

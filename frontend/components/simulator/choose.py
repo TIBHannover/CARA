@@ -39,7 +39,7 @@ def choose(api: CaraClient, study: Study, results: list[SettingResult], profile:
                     border=True,
                 )
             st.metric("Groups per query", f"{chosen.groups_per_pool:.1f}", border=True)
-            st.metric("Judged one by one", f"{chosen.individual_share:.0%}", border=True)
+            st.metric("Ungrouped", f"{chosen.individual_share:.0%}", border=True)
         if study.locked:
             st.caption("Judging has started, so the grouping can no longer change.")
             return

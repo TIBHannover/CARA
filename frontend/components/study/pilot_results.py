@@ -56,8 +56,8 @@ def render(api: CaraClient, study: Study) -> None:
                         {
                             "κ": a.kappa,
                             "agreement": meaning(a.kappa, KAPPA),
-                            "correct on relevant": percent(a.acc_relevant),
-                            "correct on not relevant": percent(a.acc_nonrelevant),
+                            "correct on Relevant": percent(a.acc_relevant),
+                            "correct on Not Relevant": percent(a.acc_nonrelevant),
                         }
                         if shared
                         else {}
@@ -76,10 +76,10 @@ def render(api: CaraClient, study: Study) -> None:
                 "relevant": st.column_config.NumberColumn(format="%.0f%%"),
                 "unsure": st.column_config.NumberColumn(format="%.0f%%"),
                 "κ": st.column_config.NumberColumn(format="%.2f", help="mean Cohen's κ with the others"),
-                "correct on relevant": st.column_config.NumberColumn(
+                "correct on Relevant": st.column_config.NumberColumn(
                     format="%.0f%%", help="against the other annotators' majority label"
                 ),
-                "correct on not relevant": st.column_config.NumberColumn(
+                "correct on Not Relevant": st.column_config.NumberColumn(
                     format="%.0f%%", help="against the other annotators' majority label"
                 ),
             },

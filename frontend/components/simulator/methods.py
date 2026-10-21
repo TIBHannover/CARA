@@ -55,16 +55,16 @@ METHODS = [
     Method(
         "kmeans",
         "k-means",
-        "k clusters per pool; larger ones are split further.",
+        "k groups per pool; larger ones are split further.",
         [
-            Parameter("n_groups", "Number of clusters (k)", [5, 10, 15, 20, 30, 40], [10, 20]),
+            Parameter("n_groups", "Number of groups (k)", [5, 10, 15, 20, 30, 40], [10, 20]),
             Parameter("max_size", "Maximum group size", list(SIZES), [16]),
         ],
     ),
     Method(
         "hdbscan",
         "HDBSCAN",
-        "Dense clusters only; outliers are judged one by one.",
+        "Dense groups only; outliers are left ungrouped.",
         [
             Parameter("min_cluster_size", "Minimum cluster size", [2, 3, 5, 10, 15], [3, 5]),
             Parameter("max_size", "Maximum group size", list(SIZES), [16]),
@@ -122,7 +122,7 @@ def candidate_settings(study: Study) -> Candidates:
             groupings += prod(len(v) for v in values.values())
             complete &= all(values.values())
 
-        st.markdown("**Images judged one by one**, with any method")
+        st.markdown("**Ungrouped images**, with any method")
         current_solo = int(study.settings.solo.percentile)
         with st.container(horizontal=True):
             solo = st.multiselect(
@@ -130,13 +130,13 @@ def candidate_settings(study: Study) -> Candidates:
                 SOLO,
                 default=[current_solo] if current_solo in SOLO else [10],
                 help="Images whose nearest neighbour is less similar than this percentile of the query's "
-                "images are judged one by one: placed in a group, they would make it mixed.",
+                "images are left ungrouped: placed in a group, they would make it mixed.",
             )
             top_k = st.multiselect(
                 "Images most similar to the query (top k)",
                 [0, 5, 10, 20],
                 default=[0],
-                help="The k images most similar to the query are judged one by one; most Relevant images "
+                help="The k images most similar to the query are left ungrouped; most Relevant images "
                 "are usually among them.",
             )
         plan |= {"solo_percentile": solo, "top_k_individual": top_k}
@@ -148,9 +148,9 @@ def candidate_settings(study: Study) -> Candidates:
             st.warning(f"{total} settings: choose fewer values (at most {MAX_SETTINGS}).")
         else:
             st.info(
-                f"**{total} candidate settings**: {groupings} groupings × {len(solo) * len(top_k)} rules for "
-                "individual judgment, plus the one-image-at-a-time reference (and the current setting if it "
-                "is not among them).",
+                f"**{total} settings to compare**: {groupings} groupings × {len(solo) * len(top_k)} rules "
+                "for ungrouped images, plus the one-image-at-a-time reference (and the current setting if "
+                "it is not among them).",
                 icon=":material/tune:",
             )
     return Candidates(plan, total, complete)
