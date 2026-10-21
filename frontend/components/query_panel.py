@@ -10,6 +10,12 @@ from components.modes.grouped import collapse_judged, undo_split
 from components.queries import browse, next_query, short_status, unfinished, upcoming
 from state import thumbnails
 
+PICKER = "query-picker"
+
+
+def _picked() -> None:
+    st.session_state.query_id = st.session_state[PICKER]
+
 
 def render(
     ctx: Judging, queue: list[QueueItem], finished: bool, to_review: int
@@ -23,23 +29,22 @@ def render(
 
     with st.container(key="query-panel", border=True):
         st.caption(ctx.study.name)
-        # No widget key: the labels carry live counts, and Streamlit drops a keyed widget's value when its
-        # labels change, which sent annotators back to the first unfinished query. The current query lives
-        # in query_id.
         query_ids = list(by_id)
+        st.session_state[PICKER] = st.session_state.query_id
         with st.container(horizontal=True, vertical_alignment="bottom", gap="small", key="query-select"):
-            query_id = st.selectbox(
+            st.selectbox(
                 "Query",
                 query_ids,
-                index=query_ids.index(st.session_state.query_id),
+                key=PICKER,
+                on_change=_picked,
                 format_func=lambda q: (
                     f"Query {query_ids.index(q) + 1} of {len(query_ids)} · {short_status(by_id[q])}"
                     + (" · pilot" if by_id[q].is_pilot else "")
                 ),
             )
+            query_id: int = st.session_state.query_id
             if st.button(":material/apps:", key="browse-queries", help="See all your queries"):
                 browse(ctx, queue, query_id)
-        st.session_state.query_id = query_id
         view = ctx.api.query(ctx.study.id, query_id)
         load(view)
         if view.image_id is not None:
