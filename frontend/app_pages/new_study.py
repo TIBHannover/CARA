@@ -1,5 +1,7 @@
 """New study (superusers): pick a dataset's query set, how pools are built, and who judges."""
 
+from collections import Counter
+
 import streamlit as st
 
 import styles
@@ -211,21 +213,31 @@ with left, styles.section("new-labels", "5 · Labels"):
     unsure = st.toggle("Offer Unsure", True, help="It can be switched off later, in the study's settings.")
     st.caption("Colours and short names can change later; label names and grades are fixed now.")
 
-with right, styles.section("new-people", "6 · Name and people"):
+with right, styles.section("new-people", "6 · Name and team"):
     people = [u for u in api.usernames() if u != st.session_state.username]
     # A form: the name and people reach the server with the click, so Create works on the first click even
     # while the name field still has the focus.
     with st.form("new-study", border=False):
         name = st.text_input("Study name", f"{dataset.name} · {query_set.kind} → image", max_chars=256)
-        annotators = st.multiselect("Annotators", people, help="Accounts are created in a study's settings.")
-        admins = st.multiselect("Other admins", people)
+        annotators = st.multiselect(
+            "Annotators",
+            people,
+            help="They judge the images. New accounts are made under a study's Study settings.",
+        )
+        adjudicators = st.multiselect(
+            "Adjudicators",
+            people,
+            help="Optional: they set the final labels where annotators disagree or are unsure.",
+        )
+        admins = st.multiselect("Other admins", people, help="They manage the study with you.")
         submitted = st.form_submit_button("Create study", type="primary", icon=":material/add_circle:")
     if submitted:
-        overlap = set(annotators) & set(admins)
+        roles = Counter([*annotators, *adjudicators, *admins])
+        twice = sorted(user for user, n in roles.items() if n > 1)
         if not name.strip():
             st.error("Give the study a name.")
-        elif overlap:
-            st.error(f"Someone is either an annotator or an admin, not both: {', '.join(sorted(overlap))}.")
+        elif twice:
+            st.error(f"Each person has one role in a study: {', '.join(twice)} has more than one.")
         else:
             body = {
                 "name": name.strip(),
@@ -238,6 +250,7 @@ with right, styles.section("new-people", "6 · Name and people"):
                 "queries": int(queries),
                 "unsure": unsure,
                 "annotators": annotators,
+                "adjudicators": adjudicators,
                 "admins": admins,
             }
             try:

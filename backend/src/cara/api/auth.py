@@ -74,6 +74,13 @@ def require_annotator(role: Annotated[Role, Depends(get_study_role)]) -> Role:
     return role
 
 
+def require_adjudicator(role: Annotated[Role, Depends(get_study_role)]) -> Role:
+    """Let only the study's adjudicators and admins through (HTTP 403 for annotators)."""
+    if role not in (Role.ADMIN, Role.ADJUDICATOR):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "study adjudicators and admins only")
+    return role
+
+
 StudyRoleDep = Annotated[Role, Depends(get_study_role)]
 StudyAdminDep = Annotated[Role, Depends(require_admin)]
 StudyAnnotatorDep = Annotated[Role, Depends(require_annotator)]

@@ -22,10 +22,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Role(StrEnum):
-    """A person's role in one study: admins manage it, annotators judge it."""
+    """A person's role in a study: admins manage it, annotators judge, adjudicators set final labels."""
 
     ADMIN = "admin"
     ANNOTATOR = "annotator"
+    ADJUDICATOR = "adjudicator"
 
 
 class Source(StrEnum):
@@ -56,12 +57,16 @@ def _now() -> datetime:
 
 
 def _enum[E: StrEnum](enum: type[E]) -> Enum:
-    """Store an enum as its values in a plain string column.
+    """Store an enum as its values in a plain string column, 32 characters wide.
 
-    Not as a Postgres enum type, so adding a value needs no migration of the type.
+    Not as a Postgres enum type, and wider than today's values, so adding a value needs no migration.
     """
     return Enum(
-        enum, native_enum=False, validate_strings=True, values_callable=lambda e: [m.value for m in e]
+        enum,
+        native_enum=False,
+        validate_strings=True,
+        length=32,
+        values_callable=lambda e: [m.value for m in e],
     )
 
 

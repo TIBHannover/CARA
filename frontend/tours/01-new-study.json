@@ -1,7 +1,7 @@
 {
   "name": "new-study",
   "page": "New study (superusers)",
-  "when": "Setting up a study: dataset, queries, pools, labels, people.",
+  "when": "Setting up a study: dataset, queries, pools, labels, team.",
   "steps": [
     {
       "element": ".st-key-section-new-dataset",
@@ -30,8 +30,8 @@
     },
     {
       "element": ".st-key-section-new-people",
-      "title": "6 · Name and people",
-      "text": "Annotators judge, other admins help manage. Creating the study builds and groups the pools; the pilot comes next."
+      "title": "6 · Name and team",
+      "text": "Annotators judge, adjudicators set the final labels where annotators disagree, other admins help manage. Creating the study builds and groups the pools; the pilot comes next."
     }
   ]
 }

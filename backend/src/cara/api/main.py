@@ -56,6 +56,7 @@ app.include_router(datasets.router)
 app.include_router(annotation.router)
 app.include_router(annotation.images_router)
 app.include_router(admin.router)
+app.include_router(admin.adjudication)
 app.include_router(admin.accounts)
 
 STATUS_OF: dict[type[Exception], int] = {

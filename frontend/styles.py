@@ -119,6 +119,8 @@ def judge_page() -> None:
         # Padding inside the scroll box keeps the label frame round each image (3 px, outside it) visible.
         "{max-height:68vh;overflow-y:auto;padding:4px 0.35rem 4px 4px;}"
         ".cara-anchor{scroll-margin-top:5.5rem;}"
+        # Adjudication: each annotator's label under an image, in the label's colour.
+        ".cara-votes{display:flex;flex-wrap:wrap;gap:0 0.6rem;font-size:0.8rem;line-height:1.3;}"
         ".cara-groups{display:flex;flex-wrap:wrap;gap:0.4rem;}"
         ".cara-groups a{padding:0.15rem 0.6rem;border:1px solid #E4E4E7;border-radius:1rem;"
         "background:#FFFFFF;color:inherit;text-decoration:none;font-size:0.85rem;}"

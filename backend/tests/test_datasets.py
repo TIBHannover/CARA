@@ -124,6 +124,7 @@ def test_a_study_is_created_from_the_dashboard(client: TestClient) -> None:
         "k": 6,
         "unsure": False,
         "annotators": ["bob"],
+        "adjudicators": ["eve"],
     }
     assert client.post("/studies", json=body, headers=login(client, "ann")).status_code == 403
     assert client.post("/studies", json=body | {"encoder": "other"}, headers=root).status_code == 422
@@ -135,6 +136,8 @@ def test_a_study_is_created_from_the_dashboard(client: TestClient) -> None:
     bob = login(client, "bob")
     view = client.get(f"/studies/{study['id']}/queries/2", headers=bob).json()
     assert view["pool_size"] == 6
+    eve = login(client, "eve")
+    assert client.get(f"/studies/{study['id']}/adjudication/agreement", headers=eve).status_code == 200
     assert client.get("/users", headers=root).json() == ["ann", "bob", "eve", "root"]
     assert client.get("/users", headers=bob).status_code == 403
 

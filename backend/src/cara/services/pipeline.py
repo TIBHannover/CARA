@@ -52,6 +52,7 @@ class PipelineService:
         admins: list[str],
         pool: Literal["knn", "file", "random"] | None = None,
         pool_encoders: tuple[str, ...] = (),
+        adjudicators: tuple[str, ...] = (),
     ) -> StudyRow:
         """Create a study from the New study page, with the standard labels.
 
@@ -102,7 +103,9 @@ class PipelineService:
             grouping=Agglomerative(method="agglomerative") if encoder else NoGrouping(method="none"),
             order="similarity" if encoder in info.knn_encoders else "pool_rank",
         )
-        return self.setup_study(settings, dataset_id, query_set, count, seed, annotators, tuple(admins))
+        return self.setup_study(
+            settings, dataset_id, query_set, count, seed, annotators, tuple(admins), adjudicators
+        )
 
     def setup_study(
         self,
@@ -113,6 +116,7 @@ class PipelineService:
         seed: int,
         annotators: list[str],
         admins: tuple[str, ...] = (),
+        adjudicators: tuple[str, ...] = (),
     ) -> StudyRow:
         """Create a study that is ready to judge: queries sampled, pools built and grouped, people added."""
         study = self.studies.create(settings, dataset_id, query_set)
@@ -120,10 +124,13 @@ class PipelineService:
         if settings.pool.source != "file":
             self.build_pools(study.id)
         self.cluster(study.id)
-        for username in annotators:
-            self.users.set_role(study.id, username, Role.ANNOTATOR)
-        for username in admins:
-            self.users.set_role(study.id, username, Role.ADMIN)
+        for role, usernames in [
+            (Role.ANNOTATOR, annotators),
+            (Role.ADJUDICATOR, adjudicators),
+            (Role.ADMIN, admins),
+        ]:
+            for username in usernames:
+                self.users.set_role(study.id, username, role)
         logger.info("study %d (%s) is ready", study.id, study.name)
         return study
 

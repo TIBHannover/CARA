@@ -1,7 +1,7 @@
-"""What a study's admins do; and accounts, for superusers.
+"""What a study's admins do; what its adjudicators do; and accounts, for superusers.
 
-The pilot, pools and groups, the simulator, progress, agreement, adjudication, exports, members and
-assignments.
+Admins: the pilot, pools and groups, the simulator, progress, exports, members and assignments.
+Adjudicators (and admins): agreement and the final labels.
 """
 
 from collections.abc import Iterator
@@ -10,15 +10,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import PlainTextResponse
 
-from cara.api.auth import CurrentUserDep, require_admin, require_superuser
+from cara.api.auth import CurrentUserDep, require_adjudicator, require_admin, require_superuser
 from cara.api.deps import AdminDep, AppSettingsDep, PipelineDep, SimulatorDep, UsersDep
 from cara.api.schemas import AdjudicateIn, AssignIn, MemberIn, PilotIn, PilotOut, SimulatorIn, UserIn
 from cara.errors import Invalid
 from cara.repositories.database import Database
-from cara.services.admin import AgreementReport, DisagreementItem, Export, Member, ProgressRow
+from cara.services.admin import AgreementReport, Export, JudgedItem, Member, ProgressRow
 from cara.services.simulator import PilotReport, Scope, SettingResult, SimulatorEvent, SimulatorService
 
 router = APIRouter(prefix="/studies/{study_id}", tags=["admin"], dependencies=[Depends(require_admin)])
+adjudication = APIRouter(
+    prefix="/studies/{study_id}/adjudication",
+    tags=["adjudication"],
+    dependencies=[Depends(require_adjudicator)],
+)
 accounts = APIRouter(prefix="/users", tags=["admin"], dependencies=[Depends(require_superuser)])
 
 
@@ -108,24 +113,6 @@ def progress(study_id: int, admin: AdminDep) -> list[ProgressRow]:
     return admin.progress(study_id)
 
 
-@router.get("/admin/agreement")
-def agreement(study_id: int, admin: AdminDep) -> AgreementReport:
-    """Return the study's agreement: overall, per pair of annotators, and per query."""
-    return admin.agreement(study_id)
-
-
-@router.get("/admin/disagreements/{query_id}")
-def disagreements(study_id: int, query_id: int, admin: AdminDep) -> list[DisagreementItem]:
-    """Return the images of a query the annotators disagree on."""
-    return admin.disagreement_items(study_id, query_id)
-
-
-@router.put("/admin/adjudications", status_code=204)
-def adjudicate(study_id: int, body: AdjudicateIn, user: CurrentUserDep, admin: AdminDep) -> None:
-    """Set an image's final label, which overrides the majority in the consensus qrels."""
-    admin.adjudicate(study_id, user, body.member_id, body.label)
-
-
 @router.get("/admin/exports/{name}", response_class=PlainTextResponse)
 def export(
     study_id: int, name: Export, admin: AdminDep, username: Annotated[str | None, Query()] = None
@@ -162,3 +149,21 @@ def list_users(users: UsersDep) -> list[str]:
 def create_user(body: UserIn, user: CurrentUserDep, users: UsersDep) -> None:
     """Create an account."""
     users.create_account(user, body.username, body.password)
+
+
+@adjudication.get("/agreement")
+def agreement(study_id: int, admin: AdminDep) -> AgreementReport:
+    """Return the study's agreement: overall, per pair of annotators, and per query."""
+    return admin.agreement(study_id)
+
+
+@adjudication.get("/items/{query_id}")
+def judged_items(study_id: int, query_id: int, admin: AdminDep) -> list[JudgedItem]:
+    """Return the judged images of a query, with every annotator's label and the final label."""
+    return admin.judged_items(study_id, query_id)
+
+
+@adjudication.put("/final-labels", status_code=204)
+def adjudicate(study_id: int, body: AdjudicateIn, user: CurrentUserDep, admin: AdminDep) -> None:
+    """Set an image's final label, which overrides the majority in the consensus qrels."""
+    admin.adjudicate(study_id, user, body.member_id, body.label)

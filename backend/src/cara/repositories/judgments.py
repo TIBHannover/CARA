@@ -267,6 +267,10 @@ class Judgments(Repository[JudgmentRow]):
             )
         )
 
+    def remove_adjudication(self, member_id: int) -> None:
+        """Take back the final label of a pool image, so the annotators' majority counts again."""
+        self.session.execute(delete(AdjudicationRow).where(AdjudicationRow.pool_member_id == member_id))
+
     def replace_assignments(self, study_id: int, pairs: list[tuple[int, int]]) -> None:
         """Replace every assignment in the study with these (user id, query id) pairs; judgments are kept."""
         query_ids = select(QueryRow.id).where(QueryRow.study_id == study_id)

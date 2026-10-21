@@ -29,15 +29,18 @@ def test_progress_agreement_adjudication_and_exports(client: TestClient) -> None
     progress = {row["username"]: row for row in client.get("/studies/1/admin/progress", headers=root).json()}
     assert progress["ann"]["complete"] == 1 and progress["ann"]["judgments"] == 12
 
-    report = client.get("/studies/1/admin/agreement", headers=root).json()
+    report = client.get("/studies/1/adjudication/agreement", headers=root).json()
     assert report["items_with_two_or_more"] == 12 and report["pairs"][0]["shared_items"] == 12
     assert sum(report["label_counts"].values()) == 24
     assert report["queries"][0]["disagreements"] == 1
 
-    items = client.get("/studies/1/admin/disagreements/1", headers=root).json()
-    assert [(i["doc_id"], i["labels"]) for i in items] == [("d1", {"ann": "no", "bob": "yes"})]
-    body = {"member_id": items[0]["member_id"], "label": "yes"}
-    assert client.put("/studies/1/admin/adjudications", json=body, headers=root).status_code == 204
+    items = client.get("/studies/1/adjudication/items/1", headers=root).json()
+    assert len(items) == 12
+    differ = [(i["doc_id"], i["labels"]) for i in items if len(set(i["labels"].values())) > 1]
+    assert differ == [("d1", {"ann": "no", "bob": "yes"})]
+    d1 = next(i for i in items if i["doc_id"] == "d1")
+    body = {"member_id": d1["member_id"], "label": "yes"}
+    assert client.put("/studies/1/adjudication/final-labels", json=body, headers=root).status_code == 204
 
     def export(name: str, **params: str) -> str:
         response = client.get(f"/studies/1/admin/exports/{name}", params=params, headers=root)
@@ -119,6 +122,24 @@ def test_admins_manage_and_annotators_judge(client: TestClient) -> None:
     assert client.post("/studies/1/queries/1/judgments", json=body, headers=root).status_code == 403
     assert client.get("/studies/1/queue", headers=root).status_code == 403
     assert client.get("/studies/1/images/1?size=64", headers=root).status_code == 200
+
+
+def test_adjudicators_set_final_labels_but_do_not_manage(client: TestClient) -> None:
+    root = login(client, "root")
+    assert client.put(
+        "/studies/1/members", json={"username": "bob", "role": "adjudicator"}, headers=root
+    ).is_success
+    _judge_all(client, "ann", {"d0"})
+    bob = login(client, "bob")
+    report = client.get("/studies/1/adjudication/agreement", headers=bob).json()
+    assert report["queries"][0]["annotators"] == 1 and report["queries"][0]["unsure"] == 0
+    item = client.get("/studies/1/adjudication/items/1", headers=bob).json()[0]
+    body = {"member_id": item["member_id"], "label": "yes"}
+    assert client.put("/studies/1/adjudication/final-labels", json=body, headers=bob).status_code == 204
+    body["label"] = None
+    assert client.put("/studies/1/adjudication/final-labels", json=body, headers=bob).status_code == 204
+    assert client.get("/studies/1/admin/progress", headers=bob).status_code == 403
+    assert client.get("/studies/1/adjudication/agreement", headers=login(client, "ann")).status_code == 403
 
 
 def test_the_pilot_is_fixed_once_the_study_has_assignments(client: TestClient) -> None:

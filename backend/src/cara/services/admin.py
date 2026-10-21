@@ -56,14 +56,18 @@ class PairAgreement:
 class QueryAgreement:
     """Agreement within one query.
 
-    How many annotators, how many images they disagree on, how many of those an admin has decided, and
-    Krippendorff's alpha.
+    How many annotators, how many images they disagree on, how many images someone marked with a label without
+    a grade (Unsure), how many images an adjudicator or admin has decided, and Krippendorff's alpha.
     """
 
     query_id: int
     external_id: str
+    is_pilot: bool
+    image_id: int | None
+    text: str | None
     annotators: int
     disagreements: int
+    unsure: int
     adjudicated: int
     alpha: float | None
 
@@ -84,8 +88,8 @@ class AgreementReport:
 
 
 @dataclass(frozen=True, slots=True)
-class DisagreementItem:
-    """One pool image the annotators disagree on, with each one's label and the adjudicated label, if any."""
+class JudgedItem:
+    """One judged pool image, with each annotator's label and the adjudicated label, if any."""
 
     member_id: int
     image_id: int
@@ -178,18 +182,24 @@ class AdminService:
             PairAgreement(a, b, len(by_user[a].keys() & by_user[b].keys()), kappa)
             for (a, b), kappa in pairwise_kappa(by_user).items()
         ]
+        ungraded = {label.name for label in settings.labels if label.grade is None}
+        judged = {r.query_id for r in records}
         queries = []
-        for query_id, external_id in sorted({(r.query_id, r.query_external_id) for r in records}):
-            in_query = [r for r in records if r.query_id == query_id]
-            query_labels = _labels_by_user(in_query)
-            if len(query_labels) < 2:
+        for query in self.db.studies.list_queries(study_id):
+            if query.id not in judged:
                 continue
+            in_query = [r for r in records if r.query_id == query.id]
+            query_labels = _labels_by_user(in_query)
             queries.append(
                 QueryAgreement(
-                    query_id=query_id,
-                    external_id=external_id,
+                    query_id=query.id,
+                    external_id=query.external_id,
+                    is_pilot=query.is_pilot,
+                    image_id=query.image_id,
+                    text=query.text,
                     annotators=len(query_labels),
                     disagreements=len(disagreements(query_labels)),
+                    unsure=len({r.member_id for r in in_query if r.label in ungraded}),
                     adjudicated=len({r.member_id for r in in_query} & adjudicated.keys()),
                     alpha=alpha(query_labels, label_names),
                 )
@@ -202,8 +212,8 @@ class AdminService:
             queries=sorted(queries, key=lambda q: -q.disagreements),
         )
 
-    def disagreement_items(self, study_id: int, query_id: int) -> list[DisagreementItem]:
-        """Return the images of a query the annotators disagree on, in pool order.
+    def judged_items(self, study_id: int, query_id: int) -> list[JudgedItem]:
+        """Return the judged images of a query, in pool order, for adjudication.
 
         Raises:
             NotFound: The query has no pool in this study.
@@ -217,13 +227,15 @@ class AdminService:
         for r in records:
             labels.setdefault(r.member_id, {})[r.username] = r.label
         return [
-            DisagreementItem(m.id, m.image_id, m.image.external_id, labels[m.id], adjudicated.get(m.id))
+            JudgedItem(m.id, m.image_id, m.image.external_id, labels[m.id], adjudicated.get(m.id))
             for m in pool.members
-            if m.id in labels and len(set(labels[m.id].values())) > 1
+            if m.id in labels
         ]
 
-    def adjudicate(self, study_id: int, admin: UserRow, member_id: int, label: str) -> None:
+    def adjudicate(self, study_id: int, adjudicator: UserRow, member_id: int, label: str | None) -> None:
         """Set an image's final label, which overrides the annotators' majority in the consensus qrels.
+
+        A `label` of None takes the final label back.
 
         Raises:
             NotFound: The study doesn't exist, or the image has no judgments in it.
@@ -231,11 +243,14 @@ class AdminService:
         """
         study = self.studies.get(study_id)
         label_row = next((row for row in study.labels if row.name == label), None)
-        if label_row is None:
+        if label is not None and label_row is None:
             raise Invalid(f"unknown label {label!r}; labels are {[row.name for row in study.labels]}")
         if not any(r.member_id == member_id for r in self.db.judgments.in_study(study_id)):
             raise NotFound(f"pool member {member_id} has no judgments in study {study_id}")
-        self.db.judgments.set_adjudication(member_id, label_row.id, admin.id)
+        if label_row is None:
+            self.db.judgments.remove_adjudication(member_id)
+        else:
+            self.db.judgments.set_adjudication(member_id, label_row.id, adjudicator.id)
 
     def export(self, study_id: int, name: Export, username: str | None) -> str:
         """Return one of the study's exports as text.

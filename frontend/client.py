@@ -296,12 +296,16 @@ class PairAgreement(Model):
 
 
 class QueryAgreement(Model):
-    """Agreement on one query: Krippendorff's alpha and the images still disputed."""
+    """Agreement on one query: Krippendorff's alpha, images disputed or Unsure, and final labels set."""
 
     query_id: int
     external_id: str
+    is_pilot: bool
+    image_id: int | None
+    text: str | None
     annotators: int
     disagreements: int
+    unsure: int
     adjudicated: int
     alpha: float | None
 
@@ -316,8 +320,8 @@ class AgreementReport(Model):
     queries: list[QueryAgreement]
 
 
-class DisagreementItem(Model):
-    """A pool image the annotators labelled differently, with each one's label."""
+class JudgedItem(Model):
+    """A judged pool image, with each annotator's label and the final label, if any."""
 
     member_id: int
     image_id: int
@@ -532,18 +536,18 @@ class CaraClient:
         return _as(list[ProgressRow], response)
 
     def agreement(self, study_id: int) -> AgreementReport:
-        """Return the study's agreement report (admins)."""
-        return _as(AgreementReport, self._send("GET", f"/studies/{study_id}/admin/agreement"))
+        """Return the study's agreement report (adjudicators and admins)."""
+        return _as(AgreementReport, self._send("GET", f"/studies/{study_id}/adjudication/agreement"))
 
-    def disagreements(self, study_id: int, query_id: int) -> list[DisagreementItem]:
-        """Return the images of one query that annotators labelled differently (admins)."""
-        response = self._send("GET", f"/studies/{study_id}/admin/disagreements/{query_id}")
-        return _as(list[DisagreementItem], response)
+    def judged_items(self, study_id: int, query_id: int) -> list[JudgedItem]:
+        """Return the judged images of one query with every annotator's label (adjudicators and admins)."""
+        response = self._send("GET", f"/studies/{study_id}/adjudication/items/{query_id}")
+        return _as(list[JudgedItem], response)
 
-    def adjudicate(self, study_id: int, member_id: int, label: str) -> None:
-        """Set the final label of one pool image, overriding the annotators' majority (admins)."""
+    def adjudicate(self, study_id: int, member_id: int, label: str | None) -> None:
+        """Set one pool image's final label, or take it back with None (adjudicators and admins)."""
         body = {"member_id": member_id, "label": label}
-        self._send("PUT", f"/studies/{study_id}/admin/adjudications", json=body)
+        self._send("PUT", f"/studies/{study_id}/adjudication/final-labels", json=body)
 
     def export(self, study_id: int, name: str, username: str | None = None) -> str:
         """Return the export `name` as text, for every annotator or only `username` (admins)."""

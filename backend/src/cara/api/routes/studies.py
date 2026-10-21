@@ -45,6 +45,7 @@ def create_study(body: StudyIn, _: SuperuserDep, pipeline: PipelineDep, studies:
         body.admins,
         body.pool,
         tuple(body.pool_encoders),
+        tuple(body.adjudicators),
     )
     return _out(study, Role.ADMIN, studies)
 

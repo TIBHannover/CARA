@@ -82,6 +82,7 @@ class StudyIn(BaseModel):
     seed: int = Field(default=0, description="The seed of the query sample.")
     unsure: bool = Field(default=True, description="Whether annotators are offered the Unsure label.")
     annotators: list[str] = []
+    adjudicators: list[str] = Field(default=[], description="They set the final labels; see the Results tab.")
     admins: list[str] = []
 
 
@@ -163,10 +164,10 @@ class SimulatorIn(BaseModel):
 
 
 class AdjudicateIn(BaseModel):
-    """The final label of one pool image, overriding the annotators' majority."""
+    """The final label of one pool image, overriding the annotators' majority; None takes it back."""
 
     member_id: int
-    label: str
+    label: str | None
 
 
 class MemberIn(BaseModel):

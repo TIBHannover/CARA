@@ -16,14 +16,19 @@ def render(api: CaraClient, study: Study) -> None:
         hide_index=True,
     )
 
-    st.caption("Admins manage and annotators judge: someone who does both needs two accounts.")
+    st.caption(
+        "Admins manage, annotators judge, and adjudicators set the final labels where annotators disagree or "
+        "are unsure. Someone with two roles needs two accounts."
+    )
 
     with styles.card("member"):
         st.markdown("**Add someone to this study**")
         with st.form("member", border=False):
             with st.container(horizontal=True, vertical_alignment="bottom"):
                 username = st.text_input("Username")
-                role = st.segmented_control("Role", ["annotator", "admin"], default="annotator")
+                role = st.segmented_control(
+                    "Role", ["annotator", "adjudicator", "admin"], default="annotator"
+                )
                 add = st.form_submit_button("Add", icon=":material/person_add:")
             if add:
                 try:

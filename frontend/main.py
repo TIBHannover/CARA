@@ -79,14 +79,14 @@ def restore_session() -> None:
 
 
 def open_study(study: Study) -> None:
-    """Open a study: its admin tabs for an admin, the judge page for an annotator."""
+    """Open a study: the admin tabs, the adjudicate page or the judge page, by the person's role."""
     st.session_state.study_id = study.id
     remember(cara_study=str(study.id))
     st.session_state.study_role = study.role
     if study.role == "admin":
         st.session_state[TAB_KEY] = first_tab(study)
         st.switch_page(study_page)
-    st.switch_page(judge_page)
+    st.switch_page(adjudicate_page if study.role == "adjudicator" else judge_page)
 
 
 def admin_summary(study: Study) -> None:
@@ -137,10 +137,12 @@ def study_card(study: Study) -> None:
             st.badge(study.dataset, icon=":material/dataset:", color="gray")
         if study.role == "admin":
             admin_summary(study)
+        elif study.role == "adjudicator":
+            st.caption("You set the final labels.")
         else:
             annotator_summary(client().queue(study.id))
         st.button(
-            "Open" if study.role == "admin" else "Judge",
+            {"admin": "Open", "adjudicator": "Adjudicate"}.get(study.role, "Judge"),
             key=f"open:{study.id}",
             icon=":material/arrow_forward:",
             type="primary",
@@ -203,6 +205,9 @@ judge_page = st.Page(
 new_study_page = st.Page(
     "app_pages/new_study.py", title="New study", icon=":material/add_circle:", visibility="hidden"
 )
+adjudicate_page = st.Page(
+    "app_pages/adjudicate.py", title="Adjudicate", icon=":material/gavel:", visibility="hidden"
+)
 study_page = st.Page(
     "app_pages/study.py", title="Study", icon=":material/science:", url_path="study", visibility="hidden"
 )
@@ -217,8 +222,9 @@ else:
         main.append(new_study_page)
     sections = {"": main}
     if st.session_state.study_id is not None:
-        # Admins manage and annotators judge; someone who does both uses two accounts.
-        main.append(study_page if st.session_state.study_role == "admin" else judge_page)
+        # Admins manage, adjudicators set final labels, annotators judge; two roles need two accounts.
+        role = st.session_state.study_role
+        main.append({"admin": study_page, "adjudicator": adjudicate_page}.get(role, judge_page))
     sections[st.session_state.username or "Account"] = [
         st.Page(logout, title="Log out", icon=":material/logout:")
     ]
