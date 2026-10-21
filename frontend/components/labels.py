@@ -19,7 +19,7 @@ def label_control(
     compact: bool,
     on_compare: Callable[[], None] | None = None,
 ) -> None:
-    """Draw one button per offered label; the active label is drawn as primary.
+    """Draw one button per offered label; the active label is drawn as primary, and clicking it takes it back.
 
     Args:
         key: The container's key; the buttons' keys and the frame CSS build on it.

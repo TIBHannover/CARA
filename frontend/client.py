@@ -602,11 +602,11 @@ class CaraClient:
         study_id: int,
         query_id: int,
         member_ids: list[int],
-        label: str,
+        label: str | None,
         source: str,
         position: int | None,
     ) -> None:
-        """Label pool images in one action.
+        """Label pool images in one action, or take their labels back (`label` None).
 
         `source` says how the label was given (a group click, a single image, review, a suggestion); a group
         click never overwrites a label given to a single image. `position` is the group's place on the page.

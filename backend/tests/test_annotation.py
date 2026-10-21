@@ -11,7 +11,7 @@ from cara.repositories.database import Database
 from cara.services.pipeline import PipelineService
 
 
-def _post(client: TestClient, headers: dict[str, str], ids: list[int], label: str, source: str) -> int:
+def _post(client: TestClient, headers: dict[str, str], ids: list[int], label: str | None, source: str) -> int:
     body = {"member_ids": ids, "label": label, "source": source}
     return client.post("/studies/1/queries/1/judgments", headers=headers, json=body).status_code
 
@@ -42,6 +42,18 @@ def test_group_label_keeps_individual_and_review_labels(client: TestClient) -> N
     assert _view(client, "bob")["judged"] == 0
     assert _post(client, headers, [999], "no", "item") == 404
     assert _post(client, headers, first, "maybe", "item") == 404
+
+
+def test_taking_a_group_label_back_keeps_individual_labels(client: TestClient) -> None:
+    headers = login(client, "ann")
+    first = [m["member_id"] for m in _view(client, "ann")["groups"][0]["members"]]
+    _post(client, headers, first, "no", "group")
+    _post(client, headers, first[:1], "yes", "item")
+    assert _post(client, headers, first, None, "group") == 204
+    labels = {m["member_id"]: m["label"] for m in _view(client, "ann")["groups"][0]["members"]}
+    assert [labels[m] for m in first] == ["yes"] + [None] * (len(first) - 1)
+    _post(client, headers, first[:1], None, "item")
+    assert _view(client, "ann")["judged"] == 0
 
 
 def test_first_judgment_locks_pools_and_grouping(client: TestClient, clean: sessionmaker[Session]) -> None:

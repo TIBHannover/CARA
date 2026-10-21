@@ -61,7 +61,10 @@ def suggestions(study_id: int, query_id: int, user: CurrentUserDep, similarity: 
 def judge(
     study_id: int, query_id: int, body: JudgeIn, user: CurrentUserDep, annotation: AnnotationDep
 ) -> None:
-    """Label pool images; the first judgment of an annotation query locks the study."""
+    """Label pool images, or take their labels back (`label` None).
+
+    The first judgment of an annotation query locks the study.
+    """
     annotation.judge(user, study_id, query_id, body.member_ids, body.label, body.source, body.group_position)
 
 

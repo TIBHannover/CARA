@@ -115,7 +115,7 @@ class JudgeIn(BaseModel):
     """Labels for pool images, given in one action."""
 
     member_ids: list[int] = Field(min_length=1, description="The pool images (members), by id.")
-    label: str = Field(description="One of the study's label names.")
+    label: str | None = Field(description="One of the study's label names; None takes the labels back.")
     source: Source = Field(
         description="How: `group`, `item` (one by one), `review`, or `suggestion` (Suggest mode)."
     )

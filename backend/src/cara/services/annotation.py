@@ -217,17 +217,18 @@ class AnnotationService:
         study_id: int,
         query_id: int,
         member_ids: list[int],
-        label: str,
+        label: str | None,
         source: Source,
         group_position: int | None,
     ) -> None:
-        """Label pool images, and log the action.
+        """Label pool images, or take their labels back, and log the action.
 
         The first judgment of an annotation query locks the study: its pools, grouping and label meanings
-        no longer change. A group label never overwrites an image labelled any other way (see
-        `Judgments.upsert`).
+        no longer change. A group label never overwrites an image labelled any other way, and taking a group's
+        label back leaves those images labelled too (see `Judgments.upsert`).
 
         Args:
+            label: The label to give; None takes the labels back.
             group_position: The group's place on the judge page, from 1; None outside groups.
 
         Raises:
@@ -238,12 +239,18 @@ class AnnotationService:
         study = self.studies.get(study_id)
         query = self.studies.query_for(user, study_id, query_id)
         label_row = next((row for row in study.labels if row.name == label), None)
-        if label_row is None:
+        if label is not None and label_row is None:
             raise NotFound(f"unknown label {label!r}; labels are {[row.name for row in study.labels]}")
         members = self.db.studies.members_in_query(query_id, member_ids)
         if not member_ids or len(members) != len(set(member_ids)):
             unknown = sorted(set(member_ids) - {m.id for m in members})
             raise NotFound(f"members {unknown} are not in the pool of query {query_id}")
+        if label_row is None:
+            self.db.judgments.remove(user.id, member_ids, source)
+            self.db.judgments.add_action(
+                user.id, query_id, ActionKind.UNLABEL, members, None, source, group_position
+            )
+            return
         if study.locked_at is None and not query.is_pilot:
             study.locked_at = datetime.now(UTC)
         self.db.judgments.upsert(user.id, member_ids, label_row.id, source)

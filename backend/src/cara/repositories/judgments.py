@@ -78,6 +78,19 @@ class Judgments(Repository[JudgmentRow]):
             )
         )
 
+    def remove(self, user_id: int, member_ids: list[int], source: Source) -> None:
+        """Take back the annotator's labels for these pool images.
+
+        By the rule of `upsert`, a group click (`Source.GROUP`) only takes back labels that came from a group
+        click; any other source takes back every label.
+        """
+        statement = delete(JudgmentRow).where(
+            JudgmentRow.user_id == user_id, JudgmentRow.pool_member_id.in_(member_ids)
+        )
+        if source == Source.GROUP:
+            statement = statement.where(JudgmentRow.source == Source.GROUP)
+        self.session.execute(statement)
+
     def add_action(
         self,
         user_id: int,

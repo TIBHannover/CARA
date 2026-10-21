@@ -42,9 +42,10 @@ class Source(StrEnum):
 
 
 class ActionKind(StrEnum):
-    """What an annotator did: labelled images, split a group, undid a split, or finished a review."""
+    """What an annotator did: labelled images, took labels back, split or merged a group, ended a review."""
 
     LABEL = "label"
+    UNLABEL = "unlabel"
     SPLIT = "split"
     UNSPLIT = "unsplit"
     REVIEW_DONE = "review_done"

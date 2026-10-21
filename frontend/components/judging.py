@@ -118,28 +118,35 @@ def on_label(
 ) -> None:
     """Save a label for images and update this session's copy (a button callback).
 
-    A group label never overwrites an image labelled on its own, as on the server; those images are kept for
-    the group's notice (`kept`). When the label completes the pool, the next run redraws the whole page.
+    Clicking the label the images (or the group's bar) already have takes it back, except in Review, where
+    every image keeps a label. A group label never overwrites an image labelled on its own, as on the server,
+    and taking it back leaves that image labelled; those images are kept for the group's notice (`kept`).
+    When the label completes the pool, the next run redraws the whole page.
 
     Args:
         source: How the label was given: `group`, `item`, `review` or `suggestion`.
         position: The group's place on the page, for the action log; None outside a group.
     """
     labels = state(query_id)
-    if source != "group" and all(labels[m][0] == label for m in member_ids):
-        return
+    key = group_key(query_id, member_ids)
     if source == "group":
-        key = group_key(query_id, member_ids)
-        st.session_state[key] = label
+        taken_back = st.session_state.get(key) == label
+    else:
+        taken_back = all(labels[m][0] == label for m in member_ids)
+        if taken_back and source == "review":
+            return
+    given = None if taken_back else label
+    if source == "group":
+        st.session_state[key] = given
         # Images labelled one by one keep their label; the group says so and offers to set them too.
         kept = [m for m in member_ids if labels[m][1] not in (None, "group") and labels[m][0] != label]
-        st.session_state[f"kept:{key}"] = (label, kept)
+        st.session_state[f"kept:{key}"] = (given, kept)
     was_complete = all(value[0] for value in labels.values())
-    ctx.api.judge(ctx.study.id, query_id, member_ids, label, source, position)
+    ctx.api.judge(ctx.study.id, query_id, member_ids, given, source, position)
     for member_id in member_ids:
-        # Same rule as the server: a group click only overwrites labels that came from a group click.
+        # Same rule as the server: a group click only changes labels that came from a group click.
         if source == "group" and labels[member_id][1] not in (None, "group"):
             continue
-        labels[member_id] = (label, source)
+        labels[member_id] = (given, None if given is None else source)
     if not was_complete and all(value[0] for value in labels.values()):
         st.session_state.pool_completed = True

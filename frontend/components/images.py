@@ -17,9 +17,7 @@ def compare(ctx: Judging, view: QueryView, member: Member, source: str, position
     with st.container(horizontal=True, vertical_alignment="center"):
         for name in ctx.label_names:
             current = labels[member.member_id][0] == name
-            if st.button(
-                name, icon=ctx.icon_of[name], type="primary" if current else "secondary", disabled=current
-            ):
+            if st.button(name, icon=ctx.icon_of[name], type="primary" if current else "secondary"):
                 on_label(ctx, view.query_id, [member.member_id], name, source, position)
                 st.rerun()
         st.space("stretch")
