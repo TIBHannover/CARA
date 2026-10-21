@@ -184,3 +184,13 @@ def images_per_row(reflows: bool) -> None:
         if reflows:
             st.rerun()
     styles.images_per_row(cols)
+
+
+def tint_toggle() -> None:
+    """Draw the "Tint judged" toggle and apply it."""
+    # Seeded from `tint`, which holds the setting: Streamlit drops the toggle's value off the page.
+    st.session_state.setdefault("tint-toggle", st.session_state.get("tint", True))
+    st.session_state.tint = st.toggle(
+        "Tint judged", key="tint-toggle", help="Lay a tint in its label's colour over each judged image"
+    )
+    styles.tint_judged(st.session_state.tint)

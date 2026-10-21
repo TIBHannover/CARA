@@ -3,7 +3,7 @@
 import streamlit as st
 
 from client import QueryView, QueueItem
-from components.images import images_per_row
+from components.images import images_per_row, tint_toggle
 from components.judging import Judging, collapse_key, collapsed, load, state
 from components.modes import MODES, offered
 from components.modes.grouped import collapse_judged, undo_split
@@ -90,6 +90,7 @@ def render(
                 on_change=collapse_judged,
                 args=(query_id, [m.member_id for m in view.individual]),
             )
+            tint_toggle()
             if settings.display.split and settings.encoder:
                 st.button(
                     "Undo split",

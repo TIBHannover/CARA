@@ -188,6 +188,11 @@ def images_per_row(cols: int) -> None:
     st.html(f"<style>:root{{--cara-cols:{cols};}}</style>")
 
 
+def tint_judged(on: bool) -> None:
+    """Show or hide the tint in its label's colour over each judged image (one CSS variable)."""
+    st.html(f"<style>:root{{--cara-tint:{0.3 if on else 0};}}</style>")
+
+
 def review_board(panels: list[str], hints_prefix: str, widths: list[int], colours: list[str]) -> None:
     """Style the review board: one card per label column, in the label's colour, each scrolling on its own.
 
@@ -250,8 +255,8 @@ def labels(labels: list[Label]) -> None:
     """Colour the label buttons, image frames and the adjudication control in the study's label colours.
 
     The buttons of one control join into one bar. An unselected button has a pale tint of its label colour and
-    the icon in that colour; the selected one is filled with it. A judged image gets a frame in its label's
-    colour: its container key ends in `lab<index>` (components/images.py).
+    the icon in that colour; the selected one is filled with it. A judged image gets a frame and a tint in its
+    label's colour: its container key ends in `lab<index>` (components/images.py).
     """
     last = len(labels) - 1
     rules = [
@@ -284,6 +289,11 @@ def labels(labels: list[Label]) -> None:
             f'[class*="st-key-review-"][class*="-lbl{i}"] button[kind="secondary"]{{color:{label.colour};}}',
             f'[class*="-lab{i}"] [data-testid="stImage"] img'
             f"{{box-shadow:0 0 0 3px {label.colour};border-radius:0.5rem;}}",
+            # A tint over the judged image, as strong as "Tint judged" sets it (`tint_judged`).
+            f'[class*="-lab{i}"] [data-testid="stImage"]{{position:relative;}}'
+            f'[class*="-lab{i}"] [data-testid="stImage"]::after{{content:"";position:absolute;inset:0;'
+            f"border-radius:0.5rem;pointer-events:none;"
+            f"background:rgba({red},{green},{blue},var(--cara-tint,0.3));}}",
             # Suggest mode: the suggested label's button has a dashed outline, like the suggested images.
             f'[class*="-lbl{i}"][class*="-sugpick"] button'
             f"{{outline:2px dashed {label.colour};outline-offset:2px;}}",
