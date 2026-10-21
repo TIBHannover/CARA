@@ -8,6 +8,20 @@ import styles
 from client import ApiError, CaraClient, Settings, Study
 from state import forget_study
 
+# Colour presets for the labels, in label order. The default matches the default labels (Relevant, Not
+# Relevant, Unsure); the colour-blind safe one is Okabe and Ito's palette (2008).
+PALETTES = {
+    "Default": ["#2ecc71", "#e74c3c", "#f1c40f", "#3498db", "#9b59b6", "#e67e22", "#95a5a6"],
+    "Colour-blind safe": ["#0072B2", "#E69F00", "#CC79A7", "#009E73", "#56B4E9", "#D55E00", "#F0E442"],
+}
+
+
+def _preset(palette: list[str], labels: int) -> None:
+    """Put a palette into the colour pickers and save it on this run (a preset button's callback)."""
+    for index in range(labels):
+        st.session_state[f"label-colour-{index}"] = palette[index % len(palette)]
+    st.session_state["label-preset"] = True
+
 
 @dataclass(frozen=True, slots=True)
 class Proposal:
@@ -230,6 +244,16 @@ def render(api: CaraClient, study: Study) -> None:
             "label without a grade (such as Unsure) can be switched off: annotators no longer see it, and "
             "images that already have it keep it."
         )
+        with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+            st.markdown("Colours:")
+            for name, palette in PALETTES.items():
+                st.button(
+                    name,
+                    key=f"preset-{name}",
+                    icon=":material/palette:",
+                    on_click=_preset,
+                    args=(palette, len(settings.labels)),
+                )
         with st.form("labels", border=False):
             labels = []
             for index, label in enumerate(settings.labels):
@@ -247,7 +271,9 @@ def render(api: CaraClient, study: Study) -> None:
                     )
                 update = {"short": short or None, "colour": colour, "offered": offered}
                 labels.append(label.model_copy(update=update).model_dump())
-            if st.form_submit_button("Save", icon=":material/save:"):
+            if st.form_submit_button("Save", icon=":material/save:") or st.session_state.pop(
+                "label-preset", False
+            ):
                 save({"labels": labels})
 
     with styles.section("pools", "Pools"):
