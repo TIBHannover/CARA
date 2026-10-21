@@ -98,11 +98,24 @@ def context(ctx: Judging, view: QueryView, member: Member, source: str) -> None:
                 )
 
 
-def frame(ctx: Judging, view: QueryView, member: Member) -> str:
-    """Return the key suffix that gives an image the frame of its label (`lab<index>`, or `labnone`)."""
+def frame_suffix(names: list[str], label: str | None) -> str:
+    """Return the key suffix that frames and tints an image in its label's colour (`lab<i>`, `labnone`)."""
     # Key suffix with the image's label, so its coloured frame is a plain class rule (no :has()).
-    label = state(view.query_id)[member.member_id][0]
-    return f"lab{ctx.label_names.index(label)}" if label in ctx.label_names else "labnone"
+    return f"lab{names.index(label)}" if label in names else "labnone"
+
+
+def frame(ctx: Judging, view: QueryView, member: Member) -> str:
+    """Return the key suffix that frames a pool image by its label in this session (`frame_suffix`)."""
+    return frame_suffix(ctx.label_names, state(view.query_id)[member.member_id][0])
+
+
+def show_query(study_id: int, image_id: int | None, text: str | None, size: int) -> None:
+    """Show a query: its image, `size` pixels on the long side, and its text as a quote."""
+    if image_id is not None:
+        thumb = thumbnails(st.session_state.token, study_id, (image_id,), size, False)
+        st.image(thumb[image_id], width="stretch")
+    if text:
+        st.markdown(f"> {text}")
 
 
 def candidate(

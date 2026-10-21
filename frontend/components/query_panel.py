@@ -3,12 +3,11 @@
 import streamlit as st
 
 from client import QueryView, QueueItem
-from components.images import images_per_row, tint_toggle
+from components.images import images_per_row, show_query, tint_toggle
 from components.judging import Judging, collapse_key, collapsed, load, state
 from components.modes import MODES, offered
 from components.modes.grouped import collapse_judged, undo_split
 from components.queries import browse, next_query, short_status, unfinished, upcoming
-from state import thumbnails
 
 PICKER = "query-picker"
 
@@ -47,13 +46,7 @@ def render(
                 browse(ctx, queue, query_id)
         view = ctx.api.query(ctx.study.id, query_id)
         load(view)
-        if view.image_id is not None:
-            query_thumb = thumbnails(
-                ctx.token, ctx.study.id, (view.image_id,), settings.display.query_px, False
-            )
-            st.image(query_thumb[view.image_id], width="stretch")
-        if view.text:
-            st.markdown(f"> {view.text}")
+        show_query(ctx.study.id, view.image_id, view.text, settings.display.query_px)
         if view.is_pilot:
             st.info("Pilot query: judge every image one by one.", icon=":material/science:")
         judged = sum(value[0] is not None for value in state(query_id).values())
