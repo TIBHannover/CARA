@@ -279,6 +279,19 @@ def simulated_annotators(pilot: list[PilotAnnotatorStats]) -> list[dict[str, obj
             3,
             help="Realistic types decide at random; their results are averaged over these runs.",
         )
+        # Pilot annotators without any measured value get no card (`kinds`); say why.
+        unmeasured = [
+            a.username
+            for a in pilot
+            if a.queries_judged
+            and all(v is None for v in (a.acc_relevant, a.acc_nonrelevant, a.seconds_per_image))
+        ]
+        if unmeasured:
+            st.caption(
+                f":material/info: Pilot annotators ({', '.join(unmeasured)}) get a card once the pilot "
+                "measured them: accuracy needs two or more pilot annotators on the same queries, speed needs "
+                "labels given in CARA rather than loaded."
+            )
         if not chosen:
             st.warning("Switch on at least one annotator type.", icon=":material/person_off:")
         elif len(chosen) > MAX_TYPES:
