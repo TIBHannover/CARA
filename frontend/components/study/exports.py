@@ -18,7 +18,7 @@ def render(api: CaraClient, study: Study) -> None:
 
         with styles.card("consensus"):
             st.markdown(
-                "**Consensus qrels**: your adjudication first, otherwise the majority label; ties stay "
+                "**Consensus qrels**: the adjudicated label first, otherwise the majority label; ties stay "
                 "undecided."
             )
             st.download_button(
@@ -31,10 +31,12 @@ def render(api: CaraClient, study: Study) -> None:
         with styles.card("annotator"):
             st.markdown("**One annotator's qrels**")
             with st.container(horizontal=True, vertical_alignment="bottom"):
-                username = st.selectbox("Annotator", [m.username for m in members])
+                annotators = [m.username for m in members if m.role == "annotator"]
+                username = st.selectbox("Annotator", annotators)
                 st.download_button(
                     "Qrels",
                     lambda: api.export(study.id, "qrels", username),
+                    disabled=username is None,
                     file_name=f"{stem}.{username}.qrels",
                     icon=":material/download:",
                 )

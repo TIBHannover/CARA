@@ -251,7 +251,7 @@ def _text_on(colour: str) -> str:
 
 
 def labels(labels: list[Label]) -> None:
-    """Colour the label buttons, image frames and the adjudication control in the study's label colours.
+    """Colour the label buttons and the image frames in the study's label colours.
 
     The buttons of one control join into one bar. An unselected button has a pale tint of its label colour and
     the icon in that colour; the selected one is filled with it. A judged image gets a frame and a tint in its
@@ -299,7 +299,6 @@ def labels(labels: list[Label]) -> None:
             # Suggest mode: a dashed frame in the suggested label's colour, not yet a label.
             f'[class*="-sug{i}"] [data-testid="stImage"] img'
             f"{{outline:3px dashed {label.colour};outline-offset:-3px;border-radius:0.5rem;}}",
-            f'[class*="st-key-adjudicate-"] button:nth-child({i + 1})[data-selected="true"]{selected}',
         ]
     rules.append(
         # Suggest mode's legend: one dashed swatch per kind of suggestion.

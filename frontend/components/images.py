@@ -5,7 +5,7 @@ import streamlit as st
 import styles
 from client import Member, QueryView
 from components.feedback import count
-from components.judging import Judging, groups, on_label, state
+from components.judging import Judging, groups, state
 from components.labels import label_control
 from state import client, thumbnails
 
@@ -15,11 +15,17 @@ def compare(ctx: Judging, view: QueryView, member: Member, source: str, position
     """Show an image beside the query, large, with its label buttons and its neighbours (`context`)."""
     labels = state(view.query_id)
     with st.container(horizontal=True, vertical_alignment="center"):
-        for name in ctx.label_names:
-            current = labels[member.member_id][0] == name
-            if st.button(name, icon=ctx.icon_of[name], type="primary" if current else "secondary"):
-                on_label(ctx, view.query_id, [member.member_id], name, source, position)
-                st.rerun()
+        # The group bar's buttons, in the label colours; "Done" below redraws the page with the new label.
+        label_control(
+            ctx,
+            view.query_id,
+            f"compare:{member.member_id}",
+            [member.member_id],
+            labels[member.member_id][0],
+            source,
+            position,
+            compact=False,
+        )
         st.space("stretch")
         size = st.segmented_control(
             "Size", ["Side by side", "Large"], default="Side by side", label_visibility="collapsed"
@@ -60,6 +66,8 @@ def context(ctx: Judging, view: QueryView, member: Member, source: str) -> None:
     views = ([original] if original else []) + (["Most similar images"] if ctx.settings.encoder else [])
     if not views:
         st.caption("This study has no encoder, so there are no similar images to show next to it.")
+        if st.button("Done", icon=":material/check:", type="primary"):
+            st.rerun()
         return
     with st.container(horizontal=True, vertical_alignment="center"):
         shown = (
