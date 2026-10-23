@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: cara
+          POSTGRES_PASSWORD: cara
+          POSTGRES_DB: cara_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cara" --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      # The encode extra (PyTorch) too, so mypy and the encoder tests see what a local install sees.
+      - run: uv sync --locked --extra dev --extra encode
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - name: Toy dataset (one test loads it)
+        run: uv run python ../experiments/make_toy_dataset.py ../data/toy
+      - run: uv run pytest -q
+        env:
+          CARA_TEST_DATABASE_URL: postgresql+psycopg://cara:cara@localhost:5432/cara_test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      # The e2e group (Playwright's Python package, no browsers) so mypy can check the browser test.
+      - run: uv sync --locked --group e2e
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the images
+        run: docker compose build
+        env:
+          CARA_SECRET_KEY: only-for-the-ci-build-not-a-secret
