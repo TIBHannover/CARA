@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="frontend/assets/logo-dark.svg">
-  <img src="frontend/assets/logo.svg" alt="CARA" width="300">
-</picture>
+<img src="frontend/assets/logo-readme.svg" alt="CARA" width="300">
 
 **Cluster-Assisted Relevance Assessment Tool for Image Retrieval Test Collections**
 
