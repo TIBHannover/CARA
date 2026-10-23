@@ -1,0 +1,67 @@
+[project]
+name = "cara-annotate"
+version = "0.1.0"
+description = "Cluster-assisted relevance assessment for image retrieval pools"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.14",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.143",
+    "krippendorff>=0.8",
+    "numpy>=2.0",
+    "pgvector>=0.3",
+    "pillow>=10.0",
+    "psycopg[binary]>=3.2",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "pyjwt>=2.9",
+    "python-multipart>=0.0.12",
+    "pyyaml>=6.0",
+    "scikit-learn>=1.5",
+    "sqlalchemy>=2.0.36",
+    "threadpoolctl>=3.1",
+]
+
+[project.optional-dependencies]
+encode = ["torch>=2.4", "torchvision>=0.19", "transformers>=4.56", "tqdm>=4.66"]
+experiments = [
+    "hydra-core>=1.3",
+    "matplotlib>=3.9",
+    "pandas>=2.2",
+    "pyarrow>=17",
+    "scipy>=1.13",
+    "statsmodels>=0.14",
+]
+dev = ["httpx>=0.27", "mypy>=1.11", "pytest>=8.3", "ruff>=0.6", "types-PyYAML"]
+
+[project.scripts]
+cara = "cara.cli:main"
+
+[tool.fastapi]
+entrypoint = "cara.api.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cara"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cara"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/cara"]
+
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "krippendorff", "pgvector.*", "threadpoolctl", "transformers.*", "tqdm.*"]
+ignore_missing_imports = true

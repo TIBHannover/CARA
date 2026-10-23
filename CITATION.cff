@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use CARA, please cite it as below."
+title: "CARA: Cluster-Assisted Relevance Assessment Tool for Image Retrieval Test Collections"
+type: software
+authors:
+  - family-names: Awale
+    given-names: Sushil
+    orcid: "https://orcid.org/0000-0003-2575-0134"
+    affiliation: "TIB – Leibniz Information Centre for Science and Technology; Marburg University"
+  - family-names: Bitter
+    given-names: Wolfgang
+    orcid: "https://orcid.org/0000-0003-1668-3304"
+    affiliation: "TIB – Leibniz Information Centre for Science and Technology"
+  - family-names: Müller-Budack
+    given-names: Eric
+    orcid: "https://orcid.org/0000-0002-6802-1241"
+    affiliation: "TIB – Leibniz Information Centre for Science and Technology"
+  - family-names: Ewerth
+    given-names: Ralph
+    orcid: "https://orcid.org/0000-0003-0918-6297"
+    affiliation: "Marburg University; Hessian Center for AI; TIB – Leibniz Information Centre for Science and Technology; L3S Research Center, Leibniz University"
+version: 0.1.0
+date-released: 2026-10-23
+license: MIT
+repository-code: "https://github.com/TIBHannover/CARA"
+keywords:
+  - relevance assessment
+  - test collections
+  - image retrieval
+  - annotation tool

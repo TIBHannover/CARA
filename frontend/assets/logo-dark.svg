@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="132" height="32" viewBox="0 0 132 32">
+  <mask id="cut">
+    <rect width="32" height="32" fill="#fff"/>
+    <!-- The image symbol: a sun and two mountains, cut out of the four squares (see-through on any background). -->
+    <circle cx="25.6" cy="7" r="2.7" fill="#000"/>
+    <path d="M6.4 22.6 L12 11.2 L16.6 16.4 L20.4 12.8 L25.4 22.2 Z" fill="#000" stroke="#000" stroke-width="1.4" stroke-linejoin="round"/>
+  </mask>
+  <g mask="url(#cut)">
+    <rect x="2" y="2" width="12" height="12" rx="3" fill="#4F46E5"/>
+    <rect x="18" y="2" width="12" height="12" rx="3" fill="#A5B4FC"/>
+    <rect x="2" y="18" width="12" height="12" rx="3" fill="#A5B4FC"/>
+    <rect x="18" y="18" width="12" height="12" rx="3" fill="#4F46E5"/>
+  </g>
+  <text x="40" y="23" font-family="Inter, system-ui, sans-serif" font-size="19" font-weight="700" letter-spacing="1.5" fill="#F4F4F5">CARA</text>
+</svg>

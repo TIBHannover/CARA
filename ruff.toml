@@ -1,0 +1,10 @@
+# Lint settings for experiments/ (backend/ and frontend/ have their own in pyproject.toml).
+line-length = 110
+target-version = "py312"
+extend-exclude = ["backend", "frontend", "experiments/runlog.py"]
+
+[lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[lint.isort]
+known-first-party = ["cara"]
