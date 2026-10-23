@@ -141,6 +141,10 @@ cd ../frontend && uv sync && CARA_API_URL=http://localhost:8000 .venv/bin/stream
 - Backend checks: `ruff format . && ruff check . && mypy && pytest -q` in `backend/`.
 - Frontend checks: `ruff check . && mypy` in `frontend/`.
 
+## Acknowledgements
+
+The CARA logo is based on a design idea by [Alexsha Maharjan](https://www.linkedin.com/in/alexsham/).
+
 ## Citation
 
 If you use CARA, please cite it:
