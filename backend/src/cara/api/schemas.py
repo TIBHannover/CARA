@@ -72,9 +72,10 @@ class StudyIn(BaseModel):
         description="Nearest neighbours, the given candidates, or a random draw; None: `knn` with `k`, "
         "else `file`.",
     )
-    pool_encoders: list[str] = Field(
-        default=[],
-        description="For `knn`: more encoders whose nearest neighbours are fused with `encoder`'s.",
+    pool_depths: dict[str, int] = Field(
+        default={},
+        description="For `knn`: the pooling encoders and how many nearest images each contributes; the pool "
+        "is their union. Empty: `encoder` alone, `k` deep.",
     )
     queries: int | None = Field(
         default=None, ge=1, description="A random sample of this many queries; None: every query."

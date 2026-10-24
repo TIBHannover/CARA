@@ -6,6 +6,7 @@ import streamlit as st
 
 import styles
 from client import ApiError, CaraClient, Settings, Study
+from components.pool_depths import depth_table
 from state import forget_study
 
 # Colour presets for the labels, in label order. The default matches the default labels (Relevant, Not
@@ -297,22 +298,34 @@ def render(api: CaraClient, study: Study) -> None:
                         then="rebuild",
                     )
         else:
-            fused = pool.encoders or [name for name in (settings.encoder,) if name]
             st.caption(
-                f"The k nearest images of each query by {' and '.join(fused)}"
-                + (", fused by reciprocal rank fusion" if len(fused) > 1 else "")
-                + ". Rebuilding regroups too. Not possible once judged."
+                "Each query's nearest images by every encoder in use; the pool is their union. Rebuilding "
+                "regroups too. Not possible once judged."
             )
-            with st.form("pools", border=False):
-                whole = st.toggle("Whole collection (up to the size limit)", pool.k is None, disabled=locked)
-                k = st.number_input("k", 1, 5000, pool.k or 200, disabled=locked)
-                if st.form_submit_button(
-                    "Save and rebuild pools", icon=":material/refresh:", disabled=locked
-                ):
-                    save(
-                        {"pool": pool.model_copy(update={"k": None if whole else int(k)}).model_dump()},
-                        then="rebuild",
-                    )
+            current = dict(pool.depths) or ({settings.encoder: pool.k} if settings.encoder and pool.k else {})
+            known = set(current) | {name for name in (settings.encoder,) if name}
+            if st.session_state.get("is_superuser"):  # only superusers can list the dataset's encoders
+                known |= {
+                    name
+                    for dataset in api.datasets()
+                    if dataset.name == study.dataset
+                    for query_set in dataset.sets
+                    if query_set.name == study.query_set
+                    for name in query_set.knn_encoders
+                }
+            whole = st.toggle(
+                "Whole collection (up to the size limit)", pool.k is None and not pool.depths, disabled=locked
+            )
+            chosen = depth_table(
+                "pool-depths", sorted(known), current, pool.k or 50, disabled=locked or whole
+            )
+            if st.button(
+                "Save and rebuild pools",
+                icon=":material/refresh:",
+                disabled=locked or not (whole or chosen),
+            ):
+                rebuilt = pool.model_copy(update={"k": None, "depths": {} if whole else chosen})
+                save({"pool": rebuilt.model_dump()}, then="rebuild")
 
     with styles.section("review", "Review round"):
         review = settings.review

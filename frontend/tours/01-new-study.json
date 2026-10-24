@@ -21,7 +21,7 @@
     {
       "element": ".st-key-section-new-pools",
       "title": "4 · Encoder and pools",
-      "text": "Choose an encoder, or none to judge every image on its own. Each query is judged against its given candidates, its k most similar images (from one encoder or several, fused), or a random sample of the collection."
+      "text": "Choose an encoder, or none to judge every image on its own. Each query is judged against its given candidates, the nearest neighbours of one or more encoders (each to its own depth), or a random sample."
     },
     {
       "element": ".st-key-section-new-labels",

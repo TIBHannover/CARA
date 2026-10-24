@@ -8,6 +8,7 @@ import styles
 from client import ApiError, QuerySet
 from components import tours
 from components.feedback import count
+from components.pool_depths import depth_table
 from state import client, remember
 
 api = client()
@@ -167,25 +168,33 @@ with right, styles.section("new-pools", "4 · Encoder and pools"):
         key=f"enc-{dataset.id}-{set_name}",
         help="Groups every pool, and builds the pools of the most similar images.",
     )
-    pools = {}
+    # (name, caption) of each pool source the encoder supports.
+    pools: dict[str, tuple[str, str]] = {}
     if (encoder is None and query_set.given_pools) or encoder in query_set.given_encoders:
-        pools["file"] = "The candidates that come with each query"
+        pools["file"] = ("Given candidates", "Listed with each query, e.g. a pool from existing runs")
     if encoder in query_set.knn_encoders:
-        pools["knn"] = "The images most similar to each query"
+        pools["knn"] = ("Nearest neighbours", "Each encoder's images most similar to the query")
     if encoder is None or encoder in dataset.encoders:
-        pools["random"] = "A random sample of the collection"
-    pool = st.radio("Pool of each query", list(pools), format_func=pools.__getitem__)
+        pools["random"] = ("Random sample", "k images drawn at random: a baseline")
+    pool = st.radio(
+        "Pool",
+        list(pools),
+        format_func=lambda source: pools[source][0],
+        captions=[caption for _, caption in pools.values()],
+    )
     k = None
-    also: list[str] = []
-    if pool in ("knn", "random"):
+    depths: dict[str, int] = {}
+    if pool == "random":
         k = int(st.number_input("Images per pool (k)", 2, 5000, 50, step=10))
-    others = [e for e in query_set.knn_encoders if e != encoder]
-    if pool == "knn" and others:
-        also = st.multiselect(
-            "Also pool with",
-            others,
-            help="Each encoder's nearest images are fused into one pool (reciprocal rank fusion), so the "
-            "pool doesn't favour what one encoder finds. The encoder above still groups the pool.",
+    if pool == "knn" and encoder is not None:
+        # Every encoder that embedded the queries can pool; the encoder above starts ticked.
+        st.markdown(
+            "Pooling encoders",
+            help="An encoder is listed once it has embedded the query set "
+            "(cara encode). Several encoders keep the pool from favouring what one of them finds.",
+        )
+        depths = depth_table(
+            f"depths-{dataset.id}-{set_name}-{encoder}", query_set.knn_encoders, {encoder: 50}, 50
         )
     if pool == "random":
         st.caption(
@@ -238,6 +247,8 @@ with right, styles.section("new-people", "6 · Name and team"):
             st.error("Give the study a name.")
         elif twice:
             st.error(f"Each person has one role in a study: {', '.join(twice)} has more than one.")
+        elif pool == "knn" and not depths:
+            st.error("Tick at least one pooling encoder in section 4.")
         else:
             body = {
                 "name": name.strip(),
@@ -245,7 +256,7 @@ with right, styles.section("new-people", "6 · Name and team"):
                 "query_set": set_name,
                 "encoder": encoder,
                 "pool": pool,
-                "pool_encoders": also,
+                "pool_depths": depths,
                 "k": k,
                 "queries": int(queries),
                 "unsure": unsure,

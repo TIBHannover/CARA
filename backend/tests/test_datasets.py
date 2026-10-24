@@ -159,7 +159,7 @@ def test_dataset_files_report_where_they_are_wrong(tmp_path: Path) -> None:
         read_embeddings(embeddings)
 
 
-def test_pools_fused_from_two_encoders_take_neighbours_of_both(
+def test_pools_from_two_encoders_are_the_union_of_their_neighbours(
     clean: sessionmaker[Session], tmp_path: Path
 ) -> None:
     folder = _dataset_folder(tmp_path)
@@ -170,12 +170,12 @@ def test_pools_fused_from_two_encoders_take_neighbours_of_both(
     alt_nd[30:] = emb_nd[[10, 20, 0]]
     (folder / "index" / "alt").mkdir()
     np.savez(folder / "index" / "alt" / "corpus.npz", ids=ids, emb_nd=alt_nd)
-    fused = PoolSettings(source="knn", k=10, encoders=[SETTINGS.encoder, "alt"])
+    union = PoolSettings(source="knn", k=None, depths={SETTINGS.encoder: 5, "alt": 5})
     with clean.begin() as session:
         db = Database(session)
         dataset_id = DatasetService(db).add_folder(folder, None, None, None).id
         PipelineService(db).setup_study(
-            SETTINGS.model_copy(update={"pool": fused}), dataset_id, "image", None, 0, []
+            SETTINGS.model_copy(update={"pool": union}), dataset_id, "image", None, 0, []
         )
         for pool in db.studies.list_pools(1):
             blob = int(pool.query.external_id[1])
@@ -210,7 +210,9 @@ def test_random_pools_are_reproducible_and_never_given_candidates(
     with pytest.raises(ValueError, match="pool.k is needed"):
         PoolSettings(source="random", k=None)
     with pytest.raises(ValueError, match="knn' only"):
-        PoolSettings(source="file", k=None, encoders=["a", "b"])
+        PoolSettings(source="file", k=None, depths={"a": 3, "b": 3})
+    with pytest.raises(ValueError, match="more than pool.max_size"):
+        PoolSettings(source="knn", depths={"a": 600, "b": 600})
 
 
 def test_the_dashboard_creates_random_pools_and_checks_pooling_encoders(client: TestClient) -> None:
@@ -224,11 +226,21 @@ def test_the_dashboard_creates_random_pools_and_checks_pooling_encoders(client: 
         "source": "random",
         "k": 5,
         "max_size": 1000,
-        "encoders": [],
+        "depths": {},
         "seed": 0,
     }
-    fused = body | {"name": "fused", "k": 6, "pool_encoders": ["missing"]}
-    assert client.post("/studies", json=fused, headers=root).status_code == 422
+    unknown = body | {"name": "pooled", "pool": "knn", "pool_depths": {"missing": 3}}
+    assert client.post("/studies", json=unknown, headers=root).status_code == 422
+    deep = body | {
+        "name": "pooled",
+        "pool": "knn",
+        "pool_depths": {SETTINGS.encoder: 4},
+        "annotators": ["bob"],
+    }
+    pooled = client.post("/studies", json=deep, headers=root).json()
+    assert pooled["settings"]["pool"]["depths"] == {SETTINGS.encoder: 4}
+    [item] = client.get(f"/studies/{pooled['id']}/queue", headers=login(client, "bob")).json()
+    assert item["pool_size"] == 4
 
 
 def test_a_study_without_an_encoder_judges_one_image_at_a_time(

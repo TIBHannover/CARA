@@ -63,7 +63,7 @@ class Pool(Model):
     source: str
     k: int | None
     max_size: int
-    encoders: list[str] = []
+    depths: dict[str, int] = {}
     seed: int = 0
 
 

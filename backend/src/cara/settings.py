@@ -56,16 +56,19 @@ class PoolSettings(Frozen):
         k: Images per pool for `knn` and `random`; for `knn`, None means the whole corpus, up to `max_size`.
             Must be None for `file`.
         max_size: The most images a pool can hold.
-        encoders: For `knn`, the encoders whose nearest neighbours are fused into one pool (reciprocal rank
-            fusion, `cara.core.fusion`); empty means the study's own encoder. Pooling with several encoders
-            keeps the pool from favouring the images one encoder likes.
+        depths: For `knn`, each pooling encoder and how many of its nearest images it contributes, e.g.
+            `{dinov3: 30, clip: 20}`. The pool is their union, each image once, so it holds up to the sum
+            of the depths (TREC-style depth pooling). Empty means the study's own encoder with depth `k`.
+            Pooling with several encoders keeps the pool from favouring the images one encoder likes.
         seed: For `random`, the seed of the draws; each query draws from it and its own id.
     """
 
     source: Literal["knn", "file", "random"] = "knn"
     k: int | None = Field(default=200, ge=1)
     max_size: int = Field(default=1000, ge=2)
-    encoders: list[Annotated[str, Field(pattern=ENCODER_NAME)]] = Field(default_factory=list)
+    depths: dict[Annotated[str, Field(pattern=ENCODER_NAME)], Annotated[int, Field(ge=1)]] = Field(
+        default_factory=dict
+    )
     seed: int = 0
 
     @model_validator(mode="after")
@@ -76,8 +79,12 @@ class PoolSettings(Frozen):
             )
         if self.source == "random" and self.k is None:
             raise ValueError("pool.k is needed for source 'random': how many images to draw per query")
-        if self.encoders and self.source != "knn":
-            raise ValueError(f"pool.encoders apply to source 'knn' only, not {self.source!r}")
+        if self.depths and self.source != "knn":
+            raise ValueError(f"pool.depths apply to source 'knn' only, not {self.source!r}")
+        if sum(self.depths.values()) > self.max_size:
+            raise ValueError(
+                f"pool.depths add up to {sum(self.depths.values())}, more than pool.max_size={self.max_size}"
+            )
         return self
 
 
