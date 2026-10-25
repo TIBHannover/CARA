@@ -187,12 +187,7 @@ with right, styles.section("new-pools", "4 · Encoder and pools"):
     if pool == "random":
         k = int(st.number_input("Images per pool (k)", 2, 5000, 50, step=10))
     if pool == "knn" and encoder is not None:
-        # Every encoder that embedded the queries can pool; the encoder above starts ticked.
-        st.markdown(
-            "Pooling encoders",
-            help="An encoder is listed once it has embedded the query set "
-            "(cara encode). Several encoders keep the pool from favouring what one of them finds.",
-        )
+        # Every encoder that embedded the queries can pool; the encoder above starts picked.
         depths = depth_table(
             f"depths-{dataset.id}-{set_name}-{encoder}", query_set.knn_encoders, {encoder: 50}, 50
         )
@@ -248,7 +243,7 @@ with right, styles.section("new-people", "6 · Name and team"):
         elif twice:
             st.error(f"Each person has one role in a study: {', '.join(twice)} has more than one.")
         elif pool == "knn" and not depths:
-            st.error("Tick at least one pooling encoder in section 4.")
+            st.error("Pick at least one pooling encoder in section 4.")
         else:
             body = {
                 "name": name.strip(),

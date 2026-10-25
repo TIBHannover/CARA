@@ -1,47 +1,47 @@
 """The encoders of a nearest-neighbour pool, and how many images each contributes (New study, Pools card)."""
 
-from typing import Any
-
 import streamlit as st
 
 
 def depth_table(
     key: str, encoders: list[str], depths: dict[str, int], default: int, disabled: bool = False
 ) -> dict[str, int]:
-    """Draw one row per encoder (Use, Encoder, Depth); return the depths of the encoders in use.
+    """Pick the pooling encoders, then a depth for each; return the depths of the encoders in use.
 
     The pool is the union of each encoder's nearest images, each image once, so it holds up to the sum of the
-    depths (TREC-style depth pooling). One encoder is simply one row.
+    depths (TREC-style depth pooling). One encoder is simply one depth field.
 
     Args:
-        depths: The encoders in use and their depths; the others start unticked at `default`.
+        depths: The encoders in use and their depths; the others start at `default` once picked.
     """
-    rows: list[dict[str, Any]] = [
-        {"use": name in depths, "encoder": name, "depth": depths.get(name, default)} for name in encoders
-    ]
-    edited = st.data_editor(
-        rows,
-        key=key,
-        hide_index=True,
-        width="stretch",
-        disabled=True if disabled else ["encoder"],
-        column_config={
-            "use": st.column_config.CheckboxColumn("Use", width="small"),
-            "encoder": st.column_config.TextColumn("Encoder"),
-            "depth": st.column_config.NumberColumn(
-                "Depth",
-                min_value=1,
-                max_value=5000,
-                step=1,
-                help="How many of its nearest images this encoder adds to each pool",
-            ),
-        },
+    chosen = st.multiselect(
+        "Pooling encoders",
+        encoders,
+        [name for name in encoders if name in depths],
+        key=f"{key}-use",
+        disabled=disabled,
+        help="Each adds its nearest images to every pool. An encoder is listed once it has embedded the "
+        "query set (cara encode). Several encoders keep the pool from favouring what one of them finds.",
     )
-    chosen = {str(row["encoder"]): int(row["depth"]) for row in edited if row["use"] and row["depth"]}
-    if chosen:
+    picked = {
+        name: int(
+            st.number_input(
+                f"Depth · {name}" if len(chosen) > 1 else "Depth",
+                1,
+                5000,
+                depths.get(name, default),
+                step=10,
+                key=f"{key}-depth-{name}",
+                disabled=disabled,
+                help="How many of its nearest images this encoder adds to each pool",
+            )
+        )
+        for name in chosen
+    }
+    if picked:
         st.caption(
-            f"Each pool: up to {sum(chosen.values())} images; an image several encoders find counts once."
+            f"Each pool: up to {sum(picked.values())} images; an image several encoders find counts once."
         )
     else:
-        st.caption(":material/warning: Tick at least one encoder.")
-    return chosen
+        st.caption(":material/warning: Pick at least one encoder.")
+    return picked
