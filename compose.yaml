@@ -26,7 +26,10 @@ services:
       CARA_TOKEN_MINUTES: ${CARA_TOKEN_MINUTES:-720}
       CARA_ADMIN_USERNAME: ${CARA_ADMIN_USERNAME:-admin}
       CARA_ADMIN_PASSWORD: ${CARA_ADMIN_PASSWORD:-}
-    volumes: ["./data:/data:ro"]
+      # For cara encode: gated models (e.g. DINOv3) need a Hugging Face token; downloads are kept in hf-cache.
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes: ["./data:/data:ro", "hf-cache:/root/.cache/huggingface"]
+    shm_size: 1gb  # cara encode loads images in worker processes, which share batches through /dev/shm
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
       db: {condition: service_healthy}
@@ -57,3 +60,4 @@ services:
 
 volumes:
   pgdata:
+  hf-cache:
