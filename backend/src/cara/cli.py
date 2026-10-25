@@ -11,6 +11,7 @@ from pathlib import Path
 
 from cara.db.models import Role
 from cara.db.session import make_sessions
+from cara.errors import Conflict, Forbidden, Invalid, NotFound
 from cara.repositories.database import Database
 from cara.services.admin import AdminService
 from cara.services.annotation import AnnotationService
@@ -132,6 +133,14 @@ def main() -> None:
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    try:
+        _run(args)
+    except (NotFound, Forbidden, Conflict, Invalid) as error:
+        parser.exit(1, f"cara {args.command}: {error}\n")
+
+
+def _run(args: argparse.Namespace) -> None:
+    """Run the parsed command in one transaction."""
     sessions = make_sessions(os.environ["CARA_DATABASE_URL"])
     with sessions.begin() as session:
         db = Database(session)
@@ -154,9 +163,14 @@ def main() -> None:
                         encoders,
                     )
             case "encode":
-                from cara.services.embedding import EncodingService
-
                 dataset = datasets.named(args.dataset)
+                try:
+                    from cara.services.embedding import EncodingService
+                except ModuleNotFoundError as error:
+                    raise Invalid(
+                        f"needs the encode extra ({error.name} is missing): build the backend with "
+                        "EXTRAS=encode, or run it with `uv sync --extra encode` (see the Encoding guide)"
+                    ) from error
                 encoding = EncodingService(db, Path(os.environ["CARA_IMAGE_ROOT"]))
                 done = encoding.encode(dataset.id, args.encoder, args.batch_size, args.num_workers)
                 logger.info("encoded %d images and %d text queries", done.images, done.text_queries)
@@ -175,7 +189,7 @@ def main() -> None:
                 pipeline.cluster(args.study_id)
             case "pilot":
                 if args.labels and not args.annotator:
-                    parser.error("--labels needs --annotator")
+                    raise Invalid("--labels needs --annotator")
                 positives = parse_qrels(args.labels.read_text()) if args.labels else None
                 among = set(positives) if positives else None
                 chosen = pipeline.set_pilot(args.study_id, args.count, args.seed, among)
