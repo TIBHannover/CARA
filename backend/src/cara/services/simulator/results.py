@@ -9,7 +9,7 @@ from cara.settings import StudySettings
 from cara.simulation import Setting
 
 RECALL_TOLERANCE = 0.02
-"""How much recall a setting may lose against judging every image alone and still be the best trade-off."""
+"""How much recall a setting may lose against judging every image alone and still be recommended."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,15 +19,16 @@ class AnnotatorResult:
     Attributes:
         min_seconds_pc: Seconds per image if every group were all relevant or all not relevant; it needs no
             labels, so every run has it, and it is a lower bound on `seconds_pc`.
-        best_tradeoff: Whether this is the fastest setting whose recall is within `RECALL_TOLERANCE` of
-            judging every image on its own.
+        keeps_recall: Whether this type's recall stays within `RECALL_TOLERANCE` of its recall when judging
+            every image on its own. None for the bounds (perfect and group-only types), which don't count
+            toward the recommendation, and when there are no labels.
     """
 
     name: str
     seconds_pc: float | None
     recall: float | None
     min_seconds_pc: float | None
-    best_tradeoff: bool = False
+    keeps_recall: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,7 @@ class SettingResult:
         min_actions_pc: Actions per image if every group were pure; a lower bound.
         actions_pc: Actions per image of a perfect annotator; None without labels.
         recall_uncorrected: Recall of an annotator who never corrects an image; None without labels.
+        recommended: Whether this is the run's recommended setting (`recommend`).
     """
 
     strategy: str
@@ -54,6 +56,7 @@ class SettingResult:
     actions_pc: float | None
     recall_uncorrected: float | None
     annotators: list[AnnotatorResult]
+    recommended: bool = False
 
 
 @dataclass(slots=True)
@@ -134,32 +137,44 @@ def _mean(values: list[float]) -> float | None:
     return float(np.mean(values)) if values else None
 
 
-def mark_tradeoffs(results: list[SettingResult]) -> list[SettingResult]:
-    """Mark, for each annotator type, the fastest setting within `RECALL_TOLERANCE` of one at a time's recall.
+def recommend(results: list[SettingResult], annotators: list[AnnotatorProfile]) -> list[SettingResult]:
+    """Mark the fastest setting that keeps every realistic type within `RECALL_TOLERANCE` of its own recall.
 
-    The CLI shows the mark; the app shows the trade-off front instead and leaves the choice to the admin.
+    An ε-constraint over the types: minimise the mean time per image over the realistic types, subject to each
+    type's recall staying within the tolerance of its recall when judging one image at a time. Perfect and
+    group-only types are bounds and don't count. One at a time always qualifies, so a run with labels always
+    has a recommendation.
     """
+    voters = [i for i, profile in enumerate(annotators) if profile.model.kind == "realistic"]
     baseline = next(result for result in results if result.strategy == "one at a time")
-    best: dict[int, int] = {}
-    for index, reference in enumerate(baseline.annotators):
-        if reference.recall is None:
-            continue
-        floor = reference.recall - RECALL_TOLERANCE
-        eligible = [
-            (result.annotators[index].seconds_pc, position)
-            for position, result in enumerate(results)
-            if (recall := result.annotators[index].recall) is not None
-            and recall >= floor
-            and result.annotators[index].seconds_pc is not None
-        ]
-        if eligible:
-            best[index] = min(eligible)[1]
+    reference = {i: baseline.annotators[i].recall for i in voters}
+    if not voters or any(recall is None for recall in reference.values()):
+        return results
+
+    def keeps(result: SettingResult, i: int) -> bool | None:
+        if i not in reference:
+            return None
+        recall, floor = result.annotators[i].recall, reference[i]
+        if recall is None or floor is None:
+            return None
+        return recall >= floor - RECALL_TOLERANCE - 1e-9
+
+    def speed(result: SettingResult) -> float:
+        seconds = [result.annotators[i].seconds_pc for i in voters]
+        known = [s for s in seconds if s is not None]
+        return float(np.mean(known)) if len(known) == len(seconds) else float("inf")
+
+    eligible = [
+        (speed(result), position)
+        for position, result in enumerate(results)
+        if all(keeps(result, i) for i in voters)
+    ]
+    best = min(eligible)[1] if eligible else None
     return [
         replace(
             result,
-            annotators=[
-                replace(a, best_tradeoff=best.get(i) == position) for i, a in enumerate(result.annotators)
-            ],
+            recommended=position == best,
+            annotators=[replace(a, keeps_recall=keeps(result, i)) for i, a in enumerate(result.annotators)],
         )
         for position, result in enumerate(results)
     ]

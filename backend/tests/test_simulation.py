@@ -11,12 +11,12 @@ from cara.grouping.agglomerative import Agglomerative
 from cara.grouping.none import NoGrouping
 from cara.simulation import (
     Grouped,
+    GroupOnly,
     Perfect,
     PoolCase,
     PoolOutcome,
     Realistic,
     ReviewRound,
-    RubberStamp,
     Setting,
     SuggestWorkflow,
     TimeModel,
@@ -47,7 +47,7 @@ def run(
     truth: npt.NDArray[np.bool_],
     score: npt.NDArray[np.float32],
     pool: PoolGroups,
-    assessor: Perfect | RubberStamp | Realistic,
+    assessor: Perfect | GroupOnly | Realistic,
     review: ReviewRound,
     rng: np.random.Generator,
     suggest: SuggestWorkflow | None = None,
@@ -61,18 +61,34 @@ def test_perfect_assessor_clicks_the_group_then_fixes_the_minority() -> None:
     assert (out.group_clicks, out.override_clicks, out.fn, out.fp, out.actions) == (1, 1, 0, 0, 2)
 
 
-def test_rubber_stamp_turns_the_minority_positive_into_a_false_negative() -> None:
-    out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, RubberStamp(kind="rubber_stamp"), OFF, RNG)
-    assert (out.fn, out.fn_group_minority, out.tn, out.actions) == (1, 1, 3, 1)
+def test_group_only_labels_the_group_by_one_glance_and_never_corrects() -> None:
+    sharp = GroupOnly(kind="group_only", acc_relevant=1, acc_nonrelevant=1)
+    # The glance falls on the member most similar to the query, the relevant one: all four become relevant.
+    out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, sharp, OFF, RNG)
+    assert (out.fn, out.fp, out.actions, out.browsed_relevant, out.browsed_nonrelevant) == (0, 3, 1, 1, 0)
+    # With the relevant image least similar, the glance sees a not relevant one, so the positive is missed.
+    out, _ = run(EMB, TRUTH, SCORE[::-1].copy(), ONE_GROUP, sharp, OFF, RNG)
+    assert (out.fn, out.fp, out.actions, out.browsed_relevant, out.browsed_nonrelevant) == (1, 0, 1, 0, 1)
 
 
-def test_realistic_assessor_brackets_perfect_and_rubber_stamp() -> None:
+def test_realistic_assessor_labels_the_group_by_what_it_perceives() -> None:
     sharp = Realistic(kind="realistic", acc_relevant=1, acc_nonrelevant=1)
     out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, sharp, OFF, RNG)
-    assert (out.override_clicks, out.fn) == (1, 0)
+    assert (out.override_clicks, out.fn, out.fp) == (1, 0, 0)
+    # Seeing every image as relevant, it labels the group relevant: not the true majority.
+    blind = sharp.model_copy(update={"acc_nonrelevant": 0.0})
+    out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, blind, OFF, RNG)
+    assert (out.override_clicks, out.fn, out.fp) == (0, 0, 3)
+
+
+def test_only_members_looked_at_cost_time() -> None:
+    sharp = Realistic(kind="realistic", acc_relevant=1, acc_nonrelevant=1)
+    out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, sharp, OFF, RNG)
+    assert (out.browsed_relevant, out.browsed_nonrelevant) == (1, 3)
+    # Looking at no member at random, it still looks at the one most similar to the query.
     skimming = sharp.model_copy(update={"full_inspection_size": 2, "inspect_prob_large": 0.0})
     out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, skimming, OFF, RNG)
-    assert (out.override_clicks, out.fn) == (0, 1)
+    assert (out.browsed_relevant, out.browsed_nonrelevant, out.fp) == (1, 0, 3)
 
 
 def test_perfect_splits_a_group_only_when_it_saves_clicks() -> None:
@@ -89,8 +105,12 @@ def test_review_round_recovers_a_missed_positive() -> None:
     sharp = Realistic(
         kind="realistic", acc_relevant=1, acc_nonrelevant=1, full_inspection_size=1, inspect_prob_large=0
     )
-    out, _ = run(EMB, TRUTH, SCORE, ONE_GROUP, sharp, ReviewRound(enabled=True, negatives_shown=2), RNG)
-    assert (out.review_flips, out.fn, out.review_shown_nonrelevant) == (1, 0, 1)
+    # It glances at the member most similar to the query, a not relevant one: the group misses the positive.
+    score = SCORE[::-1].copy()
+    out, _ = run(EMB, TRUTH, score, ONE_GROUP, sharp, OFF, RNG)
+    assert out.fn == 1
+    out, _ = run(EMB, TRUTH, score, ONE_GROUP, sharp, ReviewRound(enabled=True, negatives_shown=4), RNG)
+    assert (out.review_flips, out.fn, out.review_shown_nonrelevant) == (1, 0, 3)
 
 
 def test_one_at_a_time_baseline_and_time_model() -> None:
@@ -169,8 +189,9 @@ def test_suggest_workflow_judges_seeds_one_by_one_then_accepts_groups() -> None:
     out, final = run(emb, truth, score, empty, Perfect(kind="perfect"), OFF, rng, workflow)
     assert out.fn == 0 and out.fp == 0 and bool((final == truth).all())
     assert out.individual_clicks >= 1 and out.n_groups >= 1 and out.actions < len(truth)
-    # Rubber stamp accepts every suggestion: a group of suggestions never mixes labels here, so no errors.
-    out, _ = run(emb, truth, score, empty, RubberStamp(kind="rubber_stamp"), OFF, rng, workflow)
+    # Group-only accepts every suggestion: a group of suggestions never mixes labels here, so no errors.
+    sharp = GroupOnly(kind="group_only", acc_relevant=1, acc_nonrelevant=1)
+    out, _ = run(emb, truth, score, empty, sharp, OFF, rng, workflow)
     assert out.fn + out.fp == 0
 
 

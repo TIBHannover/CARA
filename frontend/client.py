@@ -260,7 +260,7 @@ class AnnotatorResult(Model):
     seconds_pc: float | None
     recall: float | None
     min_seconds_pc: float | None = None
-    best_tradeoff: bool
+    keeps_recall: bool | None = None
 
 
 class SettingResult(Model):
@@ -278,6 +278,7 @@ class SettingResult(Model):
     actions_pc: float | None
     recall_uncorrected: float | None
     annotators: list[AnnotatorResult]
+    recommended: bool = False
 
 
 class SimulatorEvent(Model):
@@ -290,6 +291,7 @@ class SimulatorEvent(Model):
     message: str
     results: list[SettingResult] | None = None
     images_in_study: int | None = None
+    recall_tolerance: float | None = None
 
 
 class ProgressRow(Model):

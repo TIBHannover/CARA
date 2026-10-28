@@ -39,5 +39,11 @@ def render(api: CaraClient, study: Study) -> None:
     result = st.session_state.get(result_key)
     if not isinstance(result, SimulationRun):
         return
-    profile = results.show(result, scope.images)
-    choose(api, study, result.event.results or [], profile)
+    results.show(result, scope.images)
+    choose(
+        api,
+        study,
+        result.event.results or [],
+        result.event.images_in_study or scope.images,
+        result.event.recall_tolerance or 0.02,
+    )

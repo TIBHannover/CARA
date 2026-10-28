@@ -38,13 +38,15 @@ def print_results(results: list[SettingResult]) -> None:
     logger.info(f"  {'setting':<52}" + "".join(f"{c:>8}" for c in columns))
     for result in results:
         typical = result.annotators[0]
-        mark = "*" if typical.best_tradeoff else "c" if result.is_current else " "
+        mark = "*" if result.recommended else "c" if result.is_current else " "
         logger.info(
             f"{mark} {result.strategy:<52}{result.groups_per_pool:>8.1f}{result.min_actions_pc:>8.2f}"
             f"{show(result.actions_pc):>8}{show(typical.seconds_pc):>8}{show(typical.recall):>8}"
             f"{show(result.recall_uncorrected):>8}"
         )
-    logger.info("* best trade-off (fastest within 2 points of recall)   c current   values per image")
+    logger.info(
+        "* recommended (fastest within 2 points of recall for every type)   c current   values per image"
+    )
 
 
 def main() -> None:

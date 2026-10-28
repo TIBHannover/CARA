@@ -10,8 +10,9 @@ from client import PilotAnnotatorStats
 
 PRESETS: dict[str, dict[str, float]] = {
     # Typical: accuracy from Villa & Halvey (SIGIR 2013), about 5 s per single image from Halvey & Villa
-    # (SIGIR 2014). Expert and novice are illustrative variations of it, not measurements. Perfect and
-    # careless judge without errors or without corrections, at the typical annotator's speed.
+    # (SIGIR 2014). Expert and novice are illustrative variations of it, not measurements. Perfect judges
+    # without errors; group-only labels each group by one glance, with the typical annotator's accuracy, and
+    # never corrects. Both work at the typical annotator's speed.
     "Typical": {
         "acc_relevant": 0.68,
         "acc_nonrelevant": 0.82,
@@ -49,11 +50,11 @@ PRESETS: dict[str, dict[str, float]] = {
         "browse_nonrelevant_s": 0.3,
     },
 }
-PRESETS["Perfect"] = PRESETS["Careless"] = PRESETS["Typical"]
+PRESETS["Perfect"] = PRESETS["Group-only"] = PRESETS["Typical"]
 # The preset types, in the order they are shown, with the server's model for each.
 TYPES = {
     "Perfect": "perfect",
-    "Careless": "rubber_stamp",
+    "Group-only": "group_only",
     "Novice": "realistic",
     "Typical": "realistic",
     "Expert": "realistic",
@@ -61,16 +62,16 @@ TYPES = {
 # One colour per type, shared by its card and by the result charts.
 COLOURS = {
     "Perfect": "#4F46E5",
-    "Careless": "#E11D48",
+    "Group-only": "#E11D48",
     "Novice": "#F59E0B",
     "Typical": "#0EA5E9",
     "Expert": "#10B981",
 }
 PILOT_COLOURS = ["#8B5CF6", "#14B8A6", "#F97316", "#EC4899", "#84CC16"]
-MAX_TYPES = 5  # the server's limit per run
+MAX_TYPES = 7  # the server's limit per run, Perfect and Group-only included
 ABOUT = {
     "Perfect": "Never errs: the fewest actions a setting allows.",
-    "Careless": "Labels whole groups, never corrects an image.",
+    "Group-only": "Labels each group by one glance, never corrects an image.",
     "Novice": "Inspects few images, errs more often.",
     "Typical": "Accuracy and speed from user studies.",
     "Expert": "Inspects more, errs less.",
@@ -161,10 +162,12 @@ class Kind:
         value: float = st.session_state.get(f"{field}-{self.key}", self.values[field])
         return value
 
-    def card(self) -> bool:
-        """Draw the type's card (who, key numbers, settings folded below); return whether to simulate it."""
-        default = self.name == "Typical"
-        chosen: bool = st.session_state.get(f"use-{self.key}", default)
+    def card(self, default: bool) -> bool:
+        """Draw the type's card (who, key numbers, settings folded below); return whether to simulate it.
+
+        Perfect and Group-only have no switch: they are always simulated, as the bounds of every result.
+        """
+        chosen: bool = st.session_state.get(f"use-{self.key}", default) if self.realistic else True
         with st.container(border=True, key=f"annotator-{self.key}" + ("-on" if chosen else "")):
             with st.container(horizontal=True, vertical_alignment="center", gap="small"):
                 st.html(
@@ -179,12 +182,24 @@ class Kind:
                     f"**{self.value('acc_relevant'):.0%}** · **{self.value('acc_nonrelevant'):.0%}** correct",
                     help="on Relevant · Not Relevant images",
                 )
+            elif self.model == "group_only":
+                st.markdown(
+                    f"**{self.value('acc_relevant'):.0%}** · **{self.value('acc_nonrelevant'):.0%}** correct "
+                    "per glance",
+                    help="on Relevant · Not Relevant images; one glance labels the whole group",
+                )
             else:
-                st.markdown("No errors" if self.model == "perfect" else "No corrections")
+                st.markdown("No errors")
             st.markdown(f"**{self.value('single_s'):g} s** per image on its own")
-            use = st.toggle("Simulate", value=default, key=f"use-{self.key}")
+            use = (
+                st.toggle("Simulate", value=default, key=f"use-{self.key}")
+                if self.realistic
+                else st.toggle("Always simulated", value=True, disabled=True, key=f"use-{self.key}")
+            )
             with st.expander("Adjust", icon=":material/tune:"):
-                for field in ACCURACY if self.realistic else []:
+                for field in (
+                    ACCURACY if self.realistic else ACCURACY[:2] if self.model == "group_only" else []
+                ):
                     field.widget(self.values[field.name], f"{field.name}-{self.key}")
                 st.markdown("**Seconds per action**")
                 for field in TIMES:
@@ -200,6 +215,9 @@ class Kind:
                 "full_inspection_size": int(self.value("full_inspection_size")),
                 "repetitions": repetitions,
             }
+        elif self.model == "group_only":
+            model |= {field.name: self.value(field.name) for field in ACCURACY[:2]}
+            model |= {"repetitions": repetitions}
         return {"name": self.name, "model": model, "time": {f.name: self.value(f.name) for f in TIMES}}
 
 
@@ -266,12 +284,21 @@ def simulated_annotators(pilot: list[PilotAnnotatorStats]) -> list[dict[str, obj
         )
         styles.annotator_cards()
         every = kinds(pilot)
-        presets, more = every[: len(TYPES)], every[len(TYPES) :]
+        bounds = [kind for kind in every if not kind.realistic]
+        realistic = [kind for kind in every if kind.realistic]
+        # With a pilot, its annotators are the study's real assessors, so they decide by default.
+        has_pilot = any(kind.key.startswith("pilot") for kind in realistic)
+        st.markdown("**Annotator types** · the recommendation is based on these; switch on at least one")
         with st.container(horizontal=True, key="annotator-cards-presets", gap="small"):
-            chosen = [kind for kind in presets if kind.card()]
-        with st.container(horizontal=True, key="annotator-cards-more", gap="small"):
-            chosen += [kind for kind in more if kind.card()]
+            chosen = [
+                kind
+                for kind in realistic
+                if kind.card(kind.key.startswith("pilot") if has_pilot else kind.name == "Typical")
+            ]
             _add_card()
+        st.markdown("**Bounds** · always simulated, to show the best and the worst case; they don't decide")
+        with st.container(horizontal=True, key="annotator-cards-more", gap="small"):
+            chosen += [kind for kind in bounds if kind.card(True)]
         repetitions = st.number_input(
             "Repetitions per query",
             1,
@@ -292,8 +319,14 @@ def simulated_annotators(pilot: list[PilotAnnotatorStats]) -> list[dict[str, obj
                 "measured them: accuracy needs two or more pilot annotators on the same queries, speed needs "
                 "labels given in CARA rather than loaded."
             )
-        if not chosen:
-            st.warning("Switch on at least one annotator type.", icon=":material/person_off:")
+        if not any(kind.realistic for kind in chosen):
+            st.warning(
+                "Switch on at least one annotator type: the recommendation is based on them.",
+                icon=":material/person_off:",
+            )
         elif len(chosen) > MAX_TYPES:
-            st.warning(f"Simulate at most {MAX_TYPES} types at once.", icon=":material/group_off:")
+            st.warning(
+                f"Simulate at most {MAX_TYPES - len(bounds)} annotator types at once.",
+                icon=":material/group_off:",
+            )
         return [kind.profile(int(repetitions)) for kind in chosen]

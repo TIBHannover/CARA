@@ -40,11 +40,11 @@ def test_without_labels_only_structure_is_reported(client: TestClient) -> None:
     status, results = _simulate(client, "root", source="none")
     baseline = _result(results, "one at a time")
     assert status == 200 and baseline["min_actions_pc"] == 1.0 and baseline["actions_pc"] is None
-    assert not any(_typical(result)["best_tradeoff"] for result in results)
+    assert not any(result["recommended"] for result in results)
     assert sum(bool(result["is_current"]) for result in results) >= 1
 
 
-def test_qrels_give_effort_recall_and_one_best_tradeoff(client: TestClient) -> None:
+def test_qrels_give_effort_recall_and_one_recommendation(client: TestClient) -> None:
     status, results = _simulate(client, "root", source="qrels", qrels=QRELS)
     assert status == 200
     assert _result(results, "one at a time")["actions_pc"] == 1.0
@@ -52,7 +52,8 @@ def test_qrels_give_effort_recall_and_one_best_tradeoff(client: TestClient) -> N
         r for r in results if str(r["strategy"]).startswith("agglomerative (average), groups of up to 8")
     )
     assert grouped["actions_pc"] < 1.0 and _typical(grouped)["recall"] is not None  # type: ignore[operator]
-    assert sum(bool(_typical(result)["best_tradeoff"]) for result in results) == 1
+    assert sum(bool(result["recommended"]) for result in results) == 1
+    assert all(_typical(result)["keeps_recall"] is not None for result in results)
     assert _simulate(client, "root", source="qrels", qrels="other 0 d0 1\n")[0] == 422
     assert _simulate(client, "root", source="qrels", qrels="broken line\n")[0] == 422
 
@@ -96,7 +97,8 @@ def test_stream_reports_each_step_and_ends_with_the_results(client: TestClient) 
     assert {"labels", "embeddings", "replay", "compare"} <= {e["step"] for e in events}
     assert all(0 <= e["done"] <= e["total"] for e in events)  # type: ignore[operator]
     results = events[-1]["results"]
-    assert isinstance(results, list) and sum(bool(_typical(r)["best_tradeoff"]) for r in results) == 1
+    assert isinstance(results, list) and sum(bool(r["recommended"]) for r in results) == 1
+    assert events[-1]["recall_tolerance"] == 0.02
     failed = stream(source="pilot")
     assert failed[-1]["step"] == "error" and "pilot" in str(failed[-1]["message"])
 
@@ -137,26 +139,31 @@ def test_several_annotator_profiles_are_simulated_side_by_side(client: TestClien
     assert [a["name"] for a in annotators] == ["Expert", "Slow expert", "Novice"]
     assert expert["recall"] == 1.0 and novice["recall"] < 1.0
     assert slow["seconds_pc"] == pytest.approx(2 * expert["seconds_pc"], rel=0.05)
-    assert all(sum(bool(r["annotators"][i]["best_tradeoff"]) for r in results) == 1 for i in range(3))  # type: ignore[index]
+    assert sum(bool(r["recommended"]) for r in results) == 1
     same_names = {"annotators": [{"name": "A"}, {"name": "A"}]}
     assert _simulate(client, "root", source="none", plan=same_names)[0] == 422
-    six = {"annotators": [{"name": str(i)} for i in range(6)]}
-    assert _simulate(client, "root", source="none", plan=six)[0] == 422
+    eight = {"annotators": [{"name": str(i)} for i in range(8)]}
+    assert _simulate(client, "root", source="none", plan=eight)[0] == 422
+    bounds_only = {"annotators": [{"name": "Perfect", "model": {"kind": "perfect"}}]}
+    assert _simulate(client, "root", source="none", plan=bounds_only)[0] == 422
 
 
-def test_perfect_and_careless_annotators_are_profiles_too(client: TestClient) -> None:
+def test_perfect_and_group_only_annotators_are_profiles_too(client: TestClient) -> None:
     plan = {
         "annotators": [
             {"name": "Perfect", "model": {"kind": "perfect"}},
-            {"name": "Careless", "model": {"kind": "rubber_stamp"}},
+            {"name": "Group-only", "model": {"kind": "group_only"}},
             {"name": "Typical"},
         ]
     }
     status, results = _simulate(client, "root", source="qrels", qrels=QRELS, plan=plan)
     assert status == 200
     for result in results:
-        perfect, careless, _ = result["annotators"]  # type: ignore[misc]
-        assert perfect["recall"] == 1.0 and careless["recall"] == result["recall_uncorrected"]
+        perfect, group_only, typical = result["annotators"]  # type: ignore[misc]
+        assert perfect["recall"] == 1.0 and group_only["recall"] == result["recall_uncorrected"]
+        assert perfect["keeps_recall"] is None and group_only["keeps_recall"] is None
+        assert typical["keeps_recall"] is not None
+    assert sum(bool(result["recommended"]) for result in results) == 1
 
 
 def test_minimum_time_per_profile_needs_no_labels(client: TestClient) -> None:

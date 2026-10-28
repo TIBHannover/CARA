@@ -17,7 +17,7 @@ from cara.repositories.database import Database
 from cara.services.datasets import DatasetService
 from cara.services.simulator.plan import SimulatorPlan, Source
 from cara.services.simulator.replay import PoolInput, Setup, replay_all
-from cara.services.simulator.results import SettingResult, SettingTally, mark_tradeoffs
+from cara.services.simulator.results import RECALL_TOLERANCE, SettingResult, SettingTally, recommend
 from cara.services.studies import encoder_of
 from cara.settings import StudySettings
 from cara.simulation import ReviewRound, Setting
@@ -30,6 +30,7 @@ class SimulatorEvent:
     Attributes:
         images_in_study: With the results: how many images all pools of the study hold, for estimating how
             long judging the whole study takes.
+        recall_tolerance: With the results: how much recall the recommended setting may lose (`recommend`).
     """
 
     step: Literal["labels", "embeddings", "replay", "compare", "error"]
@@ -39,6 +40,7 @@ class SimulatorEvent:
     message: str
     results: list[SettingResult] | None = None
     images_in_study: int | None = None
+    recall_tolerance: float | None = None
 
 
 class SimulationRun:
@@ -128,11 +130,12 @@ class SimulationRun:
                 tally.merge(part)
 
     def _compare(self, tallies: list[SettingTally]) -> SimulatorEvent:
-        results = mark_tradeoffs(
+        results = recommend(
             [
                 tally.result(setting, self.settings, self.plan.annotators)
                 for setting, tally in zip(self.candidates, tallies, strict=True)
-            ]
+            ],
+            self.plan.annotators,
         )
         return SimulatorEvent(
             "compare",
@@ -142,4 +145,5 @@ class SimulationRun:
             f"{len(results)} settings compared in {time.perf_counter() - self.started:.0f} s",
             results=results,
             images_in_study=sum(size for _, size in self.db.studies.pool_sizes(self.study_id)),
+            recall_tolerance=RECALL_TOLERANCE,
         )

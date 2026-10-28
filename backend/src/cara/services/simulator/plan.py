@@ -17,7 +17,7 @@ Source = Literal["qrels", "pilot", "none"]
 """Where a run's ground truth comes from: an uploaded qrels file, the judged pilot queries, or none."""
 
 MAX_CANDIDATES = 60
-MAX_ANNOTATORS = 5
+MAX_ANNOTATORS = 7
 
 
 class AgglomerativeOptions(Frozen):
@@ -42,7 +42,7 @@ class HDBSCANOptions(Frozen):
 
 
 class AnnotatorProfile(Frozen):
-    """A simulated annotator: how it judges (perfect, careless, realistic) and how long each action takes."""
+    """A simulated annotator: how it judges (perfect, group-only, realistic) and its time per action."""
 
     name: str = Field(default="Typical annotator", min_length=1, max_length=40)
     model: Assessor = Realistic(kind="realistic", repetitions=3)
@@ -74,6 +74,15 @@ class SimulatorPlan(Frozen):
         names = [annotator.name for annotator in self.annotators]
         if len(set(names)) != len(names):
             raise ValueError(f"annotator profiles need distinct names: {names}")
+        return self
+
+    @model_validator(mode="after")
+    def _one_realistic_annotator(self) -> Self:
+        if not any(annotator.model.kind == "realistic" for annotator in self.annotators):
+            raise ValueError(
+                "simulate at least one realistic annotator type: the recommendation is based on them, "
+                "while perfect and group-only types only show the bounds"
+            )
         return self
 
     def groupings(self) -> list[Agglomerative | KMeans | HDBSCAN]:

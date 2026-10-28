@@ -19,11 +19,11 @@ from cara.services.simulator.results import SettingTally
 from cara.simulation import (
     AssessorModel,
     Grouped,
+    GroupOnly,
     Perfect,
     PoolCase,
     PoolOutcome,
     ReviewRound,
-    RubberStamp,
     Setting,
     simulate_pool,
 )
@@ -82,8 +82,8 @@ def _one_thread() -> None:
 def replay_pool(pool_input: PoolInput, setup: Setup) -> tuple[list[SettingTally], float]:
     """Replay one pool under every setting and return one tally per setting, and the seconds it took.
 
-    Each setting's grouping is judged by a perfect annotator (the fewest actions), a careless one (recall
-    without corrections) and each chosen type; each draws from its own random stream.
+    Each setting's grouping is judged by a perfect annotator (the fewest actions), a group-only one (recall
+    without corrections, averaged over its runs) and each chosen type; each draws from its own random stream.
     """
     started = time.perf_counter()
     n = len(pool_input.score_n)
@@ -103,9 +103,11 @@ def replay_pool(pool_input: PoolInput, setup: Setup) -> tuple[list[SettingTally]
             )
             judge = _Judge(case, Grouped(grouped), [setup.seed, pool_input.index, setting_index])
             tally.actions_pc.append(judge(Perfect(kind="perfect"), ReviewRound(), [0]).actions / n)
-            careless = judge(RubberStamp(kind="rubber_stamp"), setup.review, [1])
-            if careless.n_relevant:
-                tally.recall_uncorrected.append(careless.tp / careless.n_relevant)
+            group_only = GroupOnly(kind="group_only")
+            for rep in range(group_only.runs()):
+                uncorrected = judge(group_only, setup.review, [1, rep])
+                if uncorrected.n_relevant:
+                    tally.recall_uncorrected.append(uncorrected.tp / uncorrected.n_relevant)
             for profile_index, (profile, profile_tally) in enumerate(
                 zip(setup.annotators, tally.profiles, strict=True)
             ):

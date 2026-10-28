@@ -31,6 +31,11 @@ class SimulationRun:
     when: str
 
 
+def _realistic(profile: dict[str, object]) -> bool:
+    model = profile.get("model")
+    return isinstance(model, dict) and model.get("kind") == "realistic"
+
+
 def summary_and_run(
     api: CaraClient,
     study_id: int,
@@ -51,8 +56,8 @@ def summary_and_run(
             text
             for text, failed in [
                 ("labels to simulate against", not ground.ready),
-                ("an annotator type", not annotators),
-                (f"at most {MAX_TYPES} annotator types", len(annotators) > MAX_TYPES),
+                ("an annotator type besides the bounds", not any(_realistic(a) for a in annotators)),
+                (f"at most {MAX_TYPES - 2} annotator types besides the bounds", len(annotators) > MAX_TYPES),
                 ("a value for every grouping option", not candidates.complete),
                 (f"at most {MAX_SETTINGS} settings", candidates.total > MAX_SETTINGS),
             ]
