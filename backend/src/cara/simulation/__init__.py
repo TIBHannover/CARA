@@ -9,7 +9,7 @@ step; an optional review round follows; the outcome counts the actions, the time
 import numpy as np
 import numpy.typing as npt
 
-from cara.simulation.assessors import Assessor, AssessorModel, Perfect, Realistic, RubberStamp
+from cara.simulation.assessors import Assessor, AssessorModel, GroupOnly, Perfect, Realistic
 from cara.simulation.case import PoolCase, Tally
 from cara.simulation.outcome import PoolOutcome, TimeModel
 from cara.simulation.workflows import Grouped, ReviewRound, Setting, SuggestWorkflow, Workflow
@@ -18,12 +18,12 @@ __all__ = [
     "Assessor",
     "AssessorModel",
     "Grouped",
+    "GroupOnly",
     "Perfect",
     "PoolCase",
     "PoolOutcome",
     "Realistic",
     "ReviewRound",
-    "RubberStamp",
     "Setting",
     "SuggestWorkflow",
     "Tally",

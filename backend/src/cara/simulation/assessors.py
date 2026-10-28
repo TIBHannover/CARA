@@ -1,9 +1,9 @@
 """Simulated annotators, called assessors.
 
-Each model decides for itself how it perceives images, which members of a group it corrects, and whether it
-corrects anything in a review; the workflows only ask (the Strategy pattern). A new model is one subclass of
-`AssessorModel`, added to the `Assessor` union. They are pydantic models in a discriminated union, so
-configs and the API describe them as data.
+Each model decides how it perceives images, which group members it looks at, which label it gives a group,
+which members it corrects, and whether it corrects anything in a review; the workflows only ask (the Strategy
+pattern). A new model is one subclass of `AssessorModel`, added to the `Assessor` union, so configs and the
+API describe it as data.
 """
 
 from typing import Annotated, Literal
@@ -27,15 +27,31 @@ class AssessorModel(Frozen):
         """
         return truth_n
 
+    def looks_at(
+        self, case: PoolCase, members: npt.NDArray[np.intp], rng: np.random.Generator
+    ) -> npt.NDArray[np.bool_]:
+        """Return which members of a group the annotator looks at before labelling it: all of them."""
+        return np.ones(len(members), dtype=bool)
+
+    def group_label(
+        self,
+        case: PoolCase,
+        members: npt.NDArray[np.intp],
+        looked_n: npt.NDArray[np.bool_],
+        perceived_n: npt.NDArray[np.bool_],
+    ) -> bool:
+        """Return the label the annotator gives the whole group: by default its true majority."""
+        return case.majority(members.tolist())
+
     def corrections(
         self,
         case: PoolCase,
         members: npt.NDArray[np.intp],
         label: bool,
+        looked_n: npt.NDArray[np.bool_],
         perceived_n: npt.NDArray[np.bool_],
-        rng: np.random.Generator,
     ) -> npt.NDArray[np.bool_]:
-        """Return which members of a group handled as `label` the annotator relabels one by one."""
+        """Return which members of a group labelled `label` the annotator relabels one by one."""
         raise NotImplementedError
 
     def split_cost(self, case: PoolCase, members: list[int]) -> tuple[int, int, int] | None:
@@ -74,8 +90,8 @@ class Perfect(AssessorModel):
         case: PoolCase,
         members: npt.NDArray[np.intp],
         label: bool,
+        looked_n: npt.NDArray[np.bool_],
         perceived_n: npt.NDArray[np.bool_],
-        rng: np.random.Generator,
     ) -> npt.NDArray[np.bool_]:
         """Return exactly the members whose true label differs from the group's."""
         corrected_n: npt.NDArray[np.bool_] = case.truth_n[members] != label
@@ -91,18 +107,50 @@ class Perfect(AssessorModel):
         return False
 
 
-class RubberStamp(AssessorModel):
-    """Labels whole groups and never corrects an image, in a group or in the review."""
+class GroupOnly(AssessorModel):
+    """Labels each group by one glance at one member and never corrects an image, in a group or in the review.
 
-    kind: Literal["rubber_stamp"]
+    The glance falls on the member most similar to the query, and its accuracy is that of a group decision.
+    Images set aside from the groups get the same accuracy.
+
+    Attributes:
+        acc_relevant: The chance it sees a relevant image as relevant.
+        acc_nonrelevant: The chance it sees a not relevant image as not relevant.
+        repetitions: Runs per pool, averaged, since it decides at random.
+    """
+
+    kind: Literal["group_only"]
+    acc_relevant: float = Field(default=0.68, ge=0.0, le=1.0)
+    acc_nonrelevant: float = Field(default=0.82, ge=0.0, le=1.0)
+    repetitions: int = Field(default=5, ge=1)
+
+    def perceive(self, truth_n: npt.NDArray[np.bool_], rng: np.random.Generator) -> npt.NDArray[np.bool_]:
+        """Return each image's truth, flipped with the chance of an error for its true label."""
+        return _perceive(truth_n, self.acc_relevant, self.acc_nonrelevant, rng)
+
+    def looks_at(
+        self, case: PoolCase, members: npt.NDArray[np.intp], rng: np.random.Generator
+    ) -> npt.NDArray[np.bool_]:
+        """Return only the member most similar to the query."""
+        return _most_similar(case, members)
+
+    def group_label(
+        self,
+        case: PoolCase,
+        members: npt.NDArray[np.intp],
+        looked_n: npt.NDArray[np.bool_],
+        perceived_n: npt.NDArray[np.bool_],
+    ) -> bool:
+        """Return what it perceives in the one member it looked at."""
+        return bool(perceived_n[members[looked_n]][0])
 
     def corrections(
         self,
         case: PoolCase,
         members: npt.NDArray[np.intp],
         label: bool,
+        looked_n: npt.NDArray[np.bool_],
         perceived_n: npt.NDArray[np.bool_],
-        rng: np.random.Generator,
     ) -> npt.NDArray[np.bool_]:
         """Return no corrections."""
         return np.zeros(len(members), dtype=bool)
@@ -112,14 +160,19 @@ class RubberStamp(AssessorModel):
         """Return False: it changes nothing in the review."""
         return False
 
+    def runs(self) -> int:
+        """Return `repetitions`."""
+        return self.repetitions
+
 
 class Realistic(AssessorModel):
     """Errs at a given rate per image, and doesn't look at every image of a large group.
 
     It looks at every member of a group up to `full_inspection_size`, at each member of a larger one with
-    probability `inspect_prob_large` (grid viewing skips rows: Xie et al., WWW 2019), and corrects what it
-    sees differently. The default accuracies are from a relevance study: 0.68 on relevant and 0.81–0.83 on not
-    relevant items (Villa and Halvey, SIGIR 2013).
+    probability `inspect_prob_large` (grid viewing skips rows: Xie et al., WWW 2019), labels the group with
+    the majority of what it perceives in the members it looked at, and corrects those it sees differently.
+    The default accuracies are from a relevance study: 0.68 on relevant and 0.81–0.83 on not relevant items
+    (Villa and Halvey, SIGIR 2013).
 
     Attributes:
         full_inspection_size: The largest group it looks at image by image.
@@ -138,23 +191,41 @@ class Realistic(AssessorModel):
 
     def perceive(self, truth_n: npt.NDArray[np.bool_], rng: np.random.Generator) -> npt.NDArray[np.bool_]:
         """Return each image's truth, flipped with the chance of an error for its true label."""
-        accuracy_n = np.where(truth_n, self.acc_relevant, self.acc_nonrelevant)
-        correct_n = rng.random(len(truth_n)) < accuracy_n
-        perceived_n: npt.NDArray[np.bool_] = np.where(correct_n, truth_n, ~truth_n)
-        return perceived_n
+        return _perceive(truth_n, self.acc_relevant, self.acc_nonrelevant, rng)
+
+    def looks_at(
+        self, case: PoolCase, members: npt.NDArray[np.intp], rng: np.random.Generator
+    ) -> npt.NDArray[np.bool_]:
+        """Return all members of a small group, each member of a larger one with `inspect_prob_large`.
+
+        It always looks at one member at least, the one most similar to the query, to have a label to give.
+        """
+        if len(members) <= self.full_inspection_size:
+            return np.ones(len(members), dtype=bool)
+        looked_n = rng.random(len(members)) < self.inspect_prob_large
+        return looked_n if looked_n.any() else _most_similar(case, members)
+
+    def group_label(
+        self,
+        case: PoolCase,
+        members: npt.NDArray[np.intp],
+        looked_n: npt.NDArray[np.bool_],
+        perceived_n: npt.NDArray[np.bool_],
+    ) -> bool:
+        """Return the majority of what it perceives in the members it looked at (relevant: more than half)."""
+        seen_n = perceived_n[members[looked_n]]
+        return bool(2 * seen_n.sum() > len(seen_n))
 
     def corrections(
         self,
         case: PoolCase,
         members: npt.NDArray[np.intp],
         label: bool,
+        looked_n: npt.NDArray[np.bool_],
         perceived_n: npt.NDArray[np.bool_],
-        rng: np.random.Generator,
     ) -> npt.NDArray[np.bool_]:
-        """Return the members it looks at and perceives differently from the group's label."""
-        looked = 1.0 if len(members) <= self.full_inspection_size else self.inspect_prob_large
-        inspected_n = rng.random(len(members)) < looked
-        corrected_n: npt.NDArray[np.bool_] = inspected_n & (perceived_n[members] != label)
+        """Return the members it looked at and perceives differently from the group's label."""
+        corrected_n: npt.NDArray[np.bool_] = looked_n & (perceived_n[members] != label)
         return corrected_n
 
     def runs(self) -> int:
@@ -162,8 +233,25 @@ class Realistic(AssessorModel):
         return self.repetitions
 
 
-Assessor = Annotated[Perfect | RubberStamp | Realistic, Field(discriminator="kind")]
+Assessor = Annotated[Perfect | GroupOnly | Realistic, Field(discriminator="kind")]
 """Every simulated annotator, told apart by its `kind` key."""
+
+
+def _perceive(
+    truth_n: npt.NDArray[np.bool_], acc_relevant: float, acc_nonrelevant: float, rng: np.random.Generator
+) -> npt.NDArray[np.bool_]:
+    """Return each image's truth, flipped with the chance of an error for its true label."""
+    accuracy_n = np.where(truth_n, acc_relevant, acc_nonrelevant)
+    correct_n = rng.random(len(truth_n)) < accuracy_n
+    perceived_n: npt.NDArray[np.bool_] = np.where(correct_n, truth_n, ~truth_n)
+    return perceived_n
+
+
+def _most_similar(case: PoolCase, members: npt.NDArray[np.intp]) -> npt.NDArray[np.bool_]:
+    """Return a mask with only the member most similar to the query."""
+    looked_n = np.zeros(len(members), dtype=bool)
+    looked_n[int(np.argmax(case.score_n[members]))] = True
+    return looked_n
 
 
 def _cheapest(case: PoolCase, members: list[int], linkage: Linkage, depth_left: int) -> tuple[int, int, int]:

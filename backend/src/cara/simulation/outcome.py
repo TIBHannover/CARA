@@ -21,8 +21,8 @@ class PoolOutcome:
         individual_clicks: Actions that label one image on its own.
         split_clicks: Splits of a group in two.
         review_flips: Labels the review round changed.
-        browsed_relevant: Truly relevant images seen inside a group.
-        browsed_nonrelevant: Truly not relevant images seen inside a group.
+        browsed_relevant: Truly relevant group members the annotator looked at.
+        browsed_nonrelevant: Truly not relevant group members the annotator looked at.
         review_shown_relevant: Truly relevant images the review showed.
         review_shown_nonrelevant: Truly not relevant images the review showed.
         tp: Relevant images labelled relevant.

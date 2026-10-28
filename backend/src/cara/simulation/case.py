@@ -54,6 +54,8 @@ class Tally:
         override_clicks: Corrections of single images inside a group.
         individual_clicks: Actions that label one image on its own.
         split_clicks: Splits of a group in two.
+        browsed_relevant: Truly relevant group members the annotator looked at.
+        browsed_nonrelevant: Truly not relevant group members the annotator looked at.
     """
 
     final_n: npt.NDArray[np.bool_]
@@ -65,6 +67,8 @@ class Tally:
     override_clicks: int = 0
     individual_clicks: int = 0
     split_clicks: int = 0
+    browsed_relevant: int = 0
+    browsed_nonrelevant: int = 0
 
     @classmethod
     def start(cls, case: PoolCase, perceived_n: npt.NDArray[np.bool_]) -> "Tally":
@@ -81,6 +85,12 @@ class Tally:
         count = len(images) if isinstance(images, list) else 1
         self.individual_clicks += count
         self.n_individual += count
+
+    def look(self, case: PoolCase, members: npt.NDArray[np.intp]) -> None:
+        """Count these group members as looked at, which costs time by their true label."""
+        relevant = int(case.truth_n[members].sum())
+        self.browsed_relevant += relevant
+        self.browsed_nonrelevant += len(members) - relevant
 
     def mark_group(self, case: PoolCase, members: npt.NDArray[np.intp], label: bool) -> None:
         """Record which members truly have the label the group is handled as, for the error analysis."""
@@ -108,8 +118,8 @@ class Tally:
             individual_clicks=self.individual_clicks,
             split_clicks=self.split_clicks,
             review_flips=flips,
-            browsed_relevant=int((grouped_n & truth_n).sum()),
-            browsed_nonrelevant=int((grouped_n & ~truth_n).sum()),
+            browsed_relevant=self.browsed_relevant,
+            browsed_nonrelevant=self.browsed_nonrelevant,
             review_shown_relevant=int((shown_n & truth_n).sum()),
             review_shown_nonrelevant=int((shown_n & ~truth_n).sum()),
             tp=int((truth_n & final_n).sum()),

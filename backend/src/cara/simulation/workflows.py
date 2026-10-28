@@ -32,12 +32,16 @@ def _handle_group(
     case: PoolCase,
     members: npt.NDArray[np.intp],
     label: bool,
+    looked_n: npt.NDArray[np.bool_],
     assessor: AssessorModel,
-    rng: np.random.Generator,
 ) -> npt.NDArray[np.bool_]:
-    """Label a whole group with one action, then let the annotator correct members; return those corrected."""
+    """Label a whole group with one action, then let the annotator correct members; return those corrected.
+
+    Only the members the annotator looked at cost time, and only they can be corrected.
+    """
     tally.group_clicks += 1
-    corrected_n = assessor.corrections(case, members, label, tally.perceived_n, rng)
+    tally.look(case, members[looked_n])
+    corrected_n = assessor.corrections(case, members, label, looked_n, tally.perceived_n)
     tally.override_clicks += int(corrected_n.sum())
     tally.final_n[members] = np.where(corrected_n, tally.perceived_n[members], label)
     return corrected_n
@@ -50,9 +54,11 @@ class Grouped:
     pool: PoolGroups
 
     def label(self, case: PoolCase, assessor: AssessorModel, rng: np.random.Generator) -> Tally:
-        """Judge the images set aside one by one, then handle each group as its true majority label.
+        """Judge the images set aside one by one, then label each group as the annotator decides.
 
-        An annotator that splits (see `split_cost`) is charged for its splits instead of corrections.
+        The annotator looks at some members, labels the group from what it saw (`group_label`), and corrects
+        members it looked at. An annotator that splits (see `split_cost`) looks at every member and is charged
+        for its splits instead of corrections.
         """
         tally = Tally.start(case, assessor.perceive(case.truth_n, rng))
         tally.judge_alone(self.pool.individual)
@@ -62,11 +68,14 @@ class Grouped:
             members = np.array(group)
             tally.mark_group(case, members, majority)
             if (cost := assessor.split_cost(case, group)) is not None:
+                tally.look(case, members)
                 tally.group_clicks += cost[0]
                 tally.override_clicks += cost[1]
                 tally.split_clicks += cost[2]
             else:
-                _handle_group(tally, case, members, majority, assessor, rng)
+                looked_n = assessor.looks_at(case, members, rng)
+                label = assessor.group_label(case, members, looked_n, tally.perceived_n)
+                _handle_group(tally, case, members, label, looked_n, assessor)
         return tally
 
 
@@ -120,7 +129,8 @@ class SuggestWorkflow(Frozen):
             label = found[0].relevant
             tally.n_groups += 1
             tally.mark_group(case, members, label)
-            corrected_n = _handle_group(tally, case, members, label, assessor, rng)
+            looked_n = assessor.looks_at(case, members, rng)
+            corrected_n = _handle_group(tally, case, members, label, looked_n, assessor)
             judged_n[members] = True
             seed_n[members[corrected_n]] = True
         return tally
