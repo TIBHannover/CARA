@@ -4,11 +4,11 @@ import streamlit as st
 
 from client import Study
 
-TABS = ["Pilot", "Pilot results", "Guidelines", "Simulation", "Annotation", "Progress", "Results"]
+TABS = ["Guidelines", "Pilot", "Pilot results", "Simulation", "Annotation", "Progress", "Results"]
 ICONS = {
+    "Guidelines": ":material/menu_book:",
     "Pilot": ":material/science:",
     "Pilot results": ":material/insights:",
-    "Guidelines": ":material/menu_book:",
     "Simulation": ":material/tune:",
     "Annotation": ":material/photo_library:",
     "Progress": ":material/monitoring:",
@@ -30,7 +30,7 @@ def first_tab(study: Study) -> str:
     """Return the tab a study opens on: the step it is at."""
     stage = study.overview.stage if study.overview else "new"
     if stage == "new":
-        return "Pilot"
+        return "Guidelines"
     if stage == "pilot":
         judged = study.overview.pilot_judged if study.overview else 0
         return "Simulation" if judged else "Pilot"

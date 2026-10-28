@@ -1,4 +1,4 @@
-"""A study's admin page: one tab per step, from the pilot to the results."""
+"""A study's admin page: one tab per step, from the guidelines to the results."""
 
 import streamlit as st
 
@@ -36,12 +36,12 @@ tab = st.segmented_control(
 if tab in ("Pilot", "Pilot results"):
     st.caption("Optional, recommended: a pilot shows how annotators judge before the grouping is fixed.")
 match tab:
+    case "Guidelines":
+        guidelines.render(api, study)
     case "Pilot":
         pilot.render(api, study)
     case "Pilot results":
         pilot_results.render(api, study)
-    case "Guidelines":
-        guidelines.render(api, study)
     case "Simulation":
         simulation.render(api, study)
     case "Annotation":
