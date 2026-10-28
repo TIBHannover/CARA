@@ -45,7 +45,17 @@ bash quickstart.sh --toy
 - `--toy` adds a small dataset of coloured shapes and a study for the annotator `alice` / `alice`.
   Use a private browser window for `alice`.
 - `bash quickstart.sh` without `--toy` starts an empty CARA.
-- `docker compose down` stops CARA. The database stays in a Docker volume until `docker compose down -v`.
+
+### Stop, restart, update
+
+CARA keeps running in the background after `quickstart.sh` returns. Run these in the CARA folder:
+
+```bash
+docker compose stop                   # stop CARA; `docker compose start` resumes it
+docker compose down                   # stop and remove the containers; the database stays in a Docker volume
+docker compose down -v                # stop and DELETE the database
+docker compose up -d --build          # after changing the code: rebuild and restart, keeping the database
+```
 
 ## Workflow
 
@@ -54,7 +64,7 @@ A study's tabs follow the work. Dashed steps are optional.
 ```mermaid
 flowchart LR
   data[Add a dataset] --> study[New study]
-  study --> pilot[Pilot] --> results1[Pilot results] --> guide[Guidelines] --> sim[Simulation] --> annot[Annotation]
+  study --> guide[Guidelines] --> pilot[Pilot] --> results1[Pilot results] --> sim[Simulation] --> annot[Annotation]
   study --> annot
   annot --> progress[Progress] --> final[Results]
   classDef optional stroke-dasharray: 5 5
@@ -143,7 +153,7 @@ cd ../frontend && uv sync && CARA_API_URL=http://localhost:8000 .venv/bin/stream
 
 ## Acknowledgements
 
-The CARA logo is based on a design idea by [Alexsha Maharjan](https://www.linkedin.com/in/alexsham/).
+The CARA logo is based on a design idea by [Alexsha Maharjan](https://alexshamaharjan.github.io/).
 
 ## Citation
 
