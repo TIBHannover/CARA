@@ -30,7 +30,6 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      # The encode extra (PyTorch) too, so mypy and the encoder tests see what a local install sees.
       - run: uv sync --locked --extra dev --extra encode
       - run: uv run ruff format --check .
       - run: uv run ruff check .
@@ -40,6 +39,24 @@ jobs:
       - run: uv run pytest -q
         env:
           CARA_TEST_DATABASE_URL: postgresql+psycopg://cara:cara@localhost:5432/cara_test
+
+  scripts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: for script in quickstart.sh scripts/*.sh; do bash -n "${script}"; done
+      - run: uv run --project backend python experiments/make_toy_dataset.py data/toy
+      - run: test "$(ls data/toy/images | wc -l)" -eq 93
 
   frontend:
     runs-on: ubuntu-latest
@@ -52,7 +69,6 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      # The e2e group (Playwright's Python package, no browsers) so mypy can check the browser test.
       - run: uv sync --locked --group e2e
       - run: uv run ruff format --check .
       - run: uv run ruff check .

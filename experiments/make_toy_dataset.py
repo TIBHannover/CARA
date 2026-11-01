@@ -1,6 +1,6 @@
 """Write the toy dataset: coloured shapes to try CARA without downloading anything (`quickstart.sh --toy`).
 
-Each query is a shape in a colour; a tenth of its candidates match both, the rest are random.
+Each query is a shape in a colour; a fifth of its candidates match both, the rest are random.
 The embeddings are the downscaled pixels (encoder `pixels`), so the toy study needs no model.
 """
 
@@ -43,7 +43,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Write a synthetic dataset to smoke-test the app.")
     parser.add_argument("out", type=Path)
     parser.add_argument("--queries", type=int, default=3)
-    parser.add_argument("--candidates", type=int, default=120)
+    parser.add_argument("--candidates", type=int, default=30)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
@@ -57,7 +57,7 @@ def main() -> None:
         images[f"images/q{q}.png"] = draw(shape, colour, rng)
         candidates = []
         for c in range(args.candidates):
-            is_match = c < args.candidates // 10
+            is_match = c < args.candidates // 5
             cand_shape = shape if is_match else str(rng.choice(SHAPES))
             cand_colour = colour if is_match else palette[int(rng.integers(len(palette)))]
             image = f"images/q{q}_c{c}.png"

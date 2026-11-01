@@ -1,9 +1,5 @@
-# Production-only settings (headless, no file watching) are in the Dockerfile.
-
 [client]
-# Hide Streamlit's developer controls from annotators.
 toolbarMode = "viewer"
-# Errors show their type only; the traceback is in the container log.
 showErrorDetails = "type"
 showErrorLinks = false
 
@@ -12,15 +8,11 @@ magicEnabled = false
 
 [server]
 showEmailPrompt = false
-# Serves static/ (fonts, driver.js) at app/static/.
 enableStaticServing = true
 
 [browser]
-# No usage statistics.
 gatherUsageStats = false
-# serverAddress comes from CARA_PUBLIC_HOST in compose.yaml.
 
-# Neutral palette with one accent, so colour on the judge page means a label.
 [theme]
 base = "light"
 primaryColor = "#4F46E5"
@@ -33,7 +25,6 @@ borderColor = "#E4E4E7"
 showWidgetBorder = true
 baseRadius = "6px"
 buttonRadius = "6px"
-# Inter (SIL Open Font Licence, static/fonts/Inter-OFL.txt), served locally.
 font = "Inter"
 baseFontSize = 14
 headingFontSizes = ["28px", "22px", "18px", "16px", "14px", "13px"]

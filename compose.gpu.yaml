@@ -1,6 +1,3 @@
-# Encoding on an NVIDIA GPU: the backend with PyTorch and the GPU (needs the NVIDIA Container Toolkit).
-#   docker compose -f compose.yaml -f compose.gpu.yaml up -d --build
-#   docker compose exec backend cara encode <dataset> --encoder dinov3
 services:
   backend:
     build:
