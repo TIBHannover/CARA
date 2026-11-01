@@ -172,6 +172,7 @@ If you use CARA, please cite it:
   author  = {Awale, Sushil and Bitter, Wolfgang and M{\"u}ller-Budack, Eric and Ewerth, Ralph},
   title   = {{CARA}: Cluster-Assisted Relevance Assessment Tool for Image Retrieval Test Collections},
   year    = {2026},
+  month   = nov,
   version = {0.1.0},
   url     = {https://github.com/TIBHannover/CARA},
   license = {MIT}

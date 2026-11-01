@@ -3,7 +3,7 @@
 CARA follows [semantic versioning](https://semver.org/). Upgrading is described in
 [Deployment](../setup/deployment.md#upgrading).
 
-## 0.1.0 (2 November 2026)
+## 0.1.0 (1 November 2026)
 
 The first public release.
 

@@ -102,7 +102,6 @@ def main(raw_cfg: DictConfig) -> None:
     outcomes.to_parquet(run_dir / "outcomes.parquet", index=False)
     (run_dir / "config.json").write_text(config.model_dump_json(indent=2))
     logger.info("wrote %d rows to %s", len(outcomes), run_dir / "outcomes.parquet")
-    # The first study logs as "simulation"; later ones under their config name (e.g. study2).
     config_name = HydraConfig.get().job.config_name
     log_run(
         experiment="simulation" if config_name == "simulate" else config_name,

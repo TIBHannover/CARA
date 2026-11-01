@@ -20,9 +20,16 @@ authors:
     orcid: "https://orcid.org/0000-0003-0918-6297"
     affiliation: "Marburg University; Hessian Center for AI; TIB – Leibniz Information Centre for Science and Technology; L3S Research Center, Leibniz University"
 version: 0.1.0
-date-released: 2026-10-23
+date-released: 2026-11-01
 license: MIT
 repository-code: "https://github.com/TIBHannover/CARA"
+url: "https://tibhannover.github.io/CARA/"
+abstract: >-
+  CARA is an open-source tool for creating relevance judgments for image retrieval test collections. It
+  covers a whole study, from candidate sampling, guidelines and pilots to judging, agreement analysis,
+  adjudication and the export of TREC qrels. Assessors judge pools in groups of similar images, labeling a
+  group with one action while every image keeps its own label, and a built-in simulator compares grouping
+  settings before a study starts.
 keywords:
   - relevance assessment
   - test collections
