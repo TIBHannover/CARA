@@ -5,7 +5,7 @@ CARA follows [semantic versioning](https://semver.org/). Upgrading is described 
 
 ## 0.1.0 (1 November 2026)
 
-The first public release.
+The first public release, archived as [10.5281/zenodo.23866167](https://doi.org/10.5281/zenodo.23866167).
 
 - **Judging:** groups of similar images with a label bar, labels per image, splitting a group, a review round sorted
   by label, and an optional Suggest mode. Image, text and composed (image and text) queries.

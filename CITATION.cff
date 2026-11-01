@@ -20,6 +20,7 @@ authors:
     orcid: "https://orcid.org/0000-0003-0918-6297"
     affiliation: "Marburg University; Hessian Center for AI; TIB – Leibniz Information Centre for Science and Technology; L3S Research Center, Leibniz University"
 version: 0.1.0
+doi: 10.5281/zenodo.23866166
 date-released: 2026-11-01
 license: MIT
 repository-code: "https://github.com/TIBHannover/CARA"

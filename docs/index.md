@@ -37,4 +37,5 @@ be an image, a text, or both (composed retrieval), and the output is TREC qrels.
 ## Citation and licence
 
 CARA is released under the [MIT licence](https://github.com/TIBHannover/CARA/blob/main/LICENSE). To cite it, use the
-[citation file](https://github.com/TIBHannover/CARA/blob/main/CITATION.cff). GitHub shows it as **Cite this repository**.
+[citation file](https://github.com/TIBHannover/CARA/blob/main/CITATION.cff), which GitHub shows as **Cite this repository**.
+Each release is archived on [Zenodo](https://doi.org/10.5281/zenodo.23866166).
