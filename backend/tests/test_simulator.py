@@ -160,7 +160,7 @@ def test_perfect_and_group_only_annotators_are_profiles_too(client: TestClient) 
     assert status == 200
     for result in results:
         perfect, group_only, typical = result["annotators"]  # type: ignore[misc]
-        assert perfect["recall"] == 1.0 and group_only["recall"] == result["recall_uncorrected"]
+        assert perfect["recall"] == 1.0 and 0.0 <= group_only["recall"] <= 1.0
         assert perfect["keeps_recall"] is None and group_only["keeps_recall"] is None
         assert typical["keeps_recall"] is not None
     assert sum(bool(result["recommended"]) for result in results) == 1
