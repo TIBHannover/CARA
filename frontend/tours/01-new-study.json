@@ -1,7 +1,7 @@
 {
   "name": "new-study",
   "page": "New study (superusers)",
-  "when": "Setting up a study: dataset, queries, pools, labels, team.",
+  "when": "Setting up a study: dataset, queries, candidate sampling, grouping, labels, team.",
   "steps": [
     {
       "element": ".st-key-section-new-dataset",
@@ -9,19 +9,19 @@
       "text": "A dataset added on the command line."
     },
     {
-      "element": ".st-key-section-new-encoding",
-      "title": "2 · Encoding",
-      "text": "Which encoders have embedded the images and queries, and the command for what is missing."
-    },
-    {
       "element": ".st-key-section-new-queries",
-      "title": "3 · Queries",
+      "title": "2 · Queries",
       "text": "One of its query sets: image, text or image + text queries, all or a random sample."
     },
     {
-      "element": ".st-key-section-new-pools",
-      "title": "4 · Encoder and pools",
-      "text": "Choose an encoder, or none to judge every image on its own. Each query is judged against its given candidates, the nearest neighbours of one or more encoders (each to its own depth), or a random sample."
+      "element": ".st-key-section-new-sampling",
+      "title": "3 · Candidate sampling",
+      "text": "How each query's pool is drawn: its given candidates, the nearest neighbours of one or more encoders (each to its own depth), or a random sample. Show embeddings lists what each encoder has embedded, and the command for what is missing."
+    },
+    {
+      "element": ".st-key-section-new-grouping",
+      "title": "4 · Grouping",
+      "text": "The encoder that groups every pool, or none to judge every image on its own."
     },
     {
       "element": ".st-key-section-new-labels",
@@ -31,7 +31,7 @@
     {
       "element": ".st-key-section-new-people",
       "title": "6 · Name and team",
-      "text": "Annotators judge, adjudicators set the final labels where annotators disagree, other admins help manage. Creating the study builds and groups the pools; the pilot comes next."
+      "text": "Annotators judge, adjudicators set the final labels where annotators disagree, other admins help manage. Creating the study builds and groups the pools; the guidelines come next."
     }
   ]
 }

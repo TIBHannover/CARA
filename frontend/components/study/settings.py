@@ -154,7 +154,9 @@ def render(api: CaraClient, study: Study) -> None:
                 save(changes, then="regroup")
 
     with styles.section("display", "Display"):
-        st.caption("Defaults for every annotator; each annotator can change images per row in the View menu.")
+        st.caption(
+            "Defaults for every annotator; each annotator can change images per row in the query panel."
+        )
         display = settings.display
         with st.form("display", border=False):
             with st.container(horizontal=True):
@@ -277,7 +279,7 @@ def render(api: CaraClient, study: Study) -> None:
             ):
                 save({"labels": labels})
 
-    with styles.section("pools", "Pools"):
+    with styles.section("pools", "Candidate sampling"):
         pool = settings.pool
         if pool.source == "file":
             st.markdown(

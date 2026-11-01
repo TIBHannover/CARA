@@ -1,11 +1,11 @@
-"""New study (superusers): pick a dataset's query set, how pools are built, and who judges."""
+"""New study (superusers): pick a dataset's query set, how candidates are sampled, and who judges."""
 
 from collections import Counter
 
 import streamlit as st
 
 import styles
-from client import ApiError, QuerySet
+from client import ApiError, Dataset, QuerySet
 from components import tours
 from components.feedback import count
 from components.pool_depths import depth_table
@@ -31,6 +31,67 @@ def add_dataset_help() -> None:
     st.caption("With Docker, put `docker compose exec backend` before the command.")
 
 
+def needed_encoding(dataset: Dataset) -> bool:
+    """Return whether the dataset lacks the embeddings its query sets need."""
+    unready = [s for s in dataset.sets if not (s.knn_encoders or s.given_encoders)]
+    return bool(unready) or not dataset.encoders
+
+
+def encoding_status(dataset: Dataset) -> None:
+    """Show what each encoder has embedded, and the command for what is missing."""
+    needed = needed_encoding(dataset)
+    partial = [e for e, n in dataset.encoders.items() if n < dataset.images]
+    text = any(s.kind != "image" for s in dataset.sets)
+    if dataset.encoders:
+        st.dataframe(
+            [
+                {
+                    "encoder": e,
+                    "images embedded": n,
+                    "share": 100 * n / max(dataset.images, 1),
+                }
+                for e, n in sorted(dataset.encoders.items())
+            ],
+            hide_index=True,
+            column_config={
+                "images embedded": st.column_config.NumberColumn(format="localized"),
+                "share": st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=100),
+            },
+        )
+    st.dataframe(
+        [
+            {
+                "query set": s.name,
+                "queries": s.queries,
+                "kind": s.kind,
+                "ready with": ", ".join(sorted(set(s.knn_encoders) | set(s.given_encoders)))
+                or "no encoder yet",
+            }
+            for s in dataset.sets
+        ],
+        hide_index=True,
+    )
+    if needed or partial:
+        if needed:
+            st.markdown(
+                "**To sample nearest neighbours or group images**, embed the dataset, then Refresh. Without "
+                "embeddings, a study judges every image on its own."
+            )
+            suggested = f"{'hf-dual' if text else 'hf-cls'}:<model id>"
+        else:
+            st.markdown("**Optional:** nearest neighbours search only embedded images. To search all:")
+            suggested = partial[0]
+        quoted = f'"{dataset.name}"' if " " in dataset.name else dataset.name
+        st.code(f"cara encode {quoted} --encoder {suggested}", language="bash")
+        st.caption(
+            ":material/memory: Use a GPU: large encoders need one, and every encoder is much faster on one. "
+            "Only what has no embedding yet is encoded, so the command can be run again."
+            + (" Text queries need a text–image encoder (`hf-dual`)." if text else "")
+        )
+    if st.button("Refresh", icon=":material/refresh:", help="Read the embeddings again", type="tertiary"):
+        st.rerun()
+
+
 def row(key: str) -> list[st.delta_generator.DeltaGenerator]:
     """Return two columns with equally tall sections (`styles.new_study`); they stack on narrow screens."""
     with st.container(key=f"new-row-{key}"):
@@ -42,13 +103,14 @@ tours.show("new-study")
 styles.new_study()
 st.markdown(
     "A study: queries from a dataset, the pool of images each is judged against, and the people who judge "
-    "them. Creating it builds and groups the pools; the pilot comes next."
+    "them. Creating it builds and groups the pools; the guidelines come next."
 )
 
 created = st.session_state.pop("created_study", None)
 if created is not None:
     st.success(
-        f"Created **{created}**. Next, choose the pilot queries and who judges them.", icon=":material/check:"
+        f"Created **{created}**. Next, write the guidelines and choose the pilot queries.",
+        icon=":material/check:",
     )
     st.page_link("app_pages/study.py", label="Open the study", icon=":material/arrow_forward:")
     st.stop()
@@ -72,76 +134,15 @@ with styles.section("new-dataset", "1 · Dataset"):
     with st.popover("Add a dataset", icon=":material/add:", type="tertiary"):
         add_dataset_help()
 
-quoted = f'"{dataset.name}"' if " " in dataset.name else dataset.name
-unready = [s for s in dataset.sets if not (s.knn_encoders or s.given_encoders)]
-partial = [e for e, n in dataset.encoders.items() if n < dataset.images]
-text = any(s.kind != "image" for s in dataset.sets)
-needed = not dataset.sets or bool(unready) or not dataset.encoders
-# Folded once every query set can be used: then it is only the encoding status.
-with styles.section("new-encoding", "2 · Encoding", expanded=needed):
-    if dataset.encoders:
-        st.dataframe(
-            [
-                {
-                    "encoder": e,
-                    "images embedded": n,
-                    "share": 100 * n / max(dataset.images, 1),
-                }
-                for e, n in sorted(dataset.encoders.items())
-            ],
-            hide_index=True,
-            column_config={
-                "images embedded": st.column_config.NumberColumn(format="localized"),
-                "share": st.column_config.ProgressColumn(format="%.0f%%", min_value=0, max_value=100),
-            },
-        )
-    if dataset.sets:
-        st.dataframe(
-            [
-                {
-                    "query set": s.name,
-                    "queries": s.queries,
-                    "kind": s.kind,
-                    "ready with": ", ".join(sorted(set(s.knn_encoders) | set(s.given_encoders)))
-                    or "no encoder yet",
-                }
-                for s in dataset.sets
-            ],
-            hide_index=True,
-        )
-    else:
-        st.warning(
-            "No query sets: the dataset folder needs `queries/<set>.jsonl` (README, *Your own data*).",
-            icon=":material/help:",
-        )
-    if dataset.sets and needed:
-        st.markdown(
-            "**To group images**, embed the dataset, then Refresh. Without embeddings, a study judges every "
-            "image on its own."
-        )
-        suggested = f"{'hf-dual' if text else 'hf-cls'}:<model id>"
-    elif partial:
-        st.markdown(
-            "**Optional:** pools of the most similar images search only embedded images. To search all:"
-        )
-        suggested = partial[0]
-    if dataset.sets and (needed or partial):
-        st.code(f"cara encode {quoted} --encoder {suggested}", language="bash")
-        st.caption(
-            ":material/memory: Use a GPU: large encoders need one, and every encoder is much faster on one. "
-            "Only what has no embedding yet is encoded, so the command can be run again."
-            + (" Text queries need a text–image encoder (`hf-dual`)." if text else "")
-        )
-    if st.button(
-        "Refresh", icon=":material/refresh:", help="Read the encoding status again", type="tertiary"
-    ):
-        st.rerun()
-
 if not dataset.sets:
+    st.warning(
+        "No query sets: the dataset folder needs `queries/<set>.jsonl` (README, *Your own data*).",
+        icon=":material/help:",
+    )
     st.stop()
 
-left, right = row("pools")
-with left, styles.section("new-queries", "3 · Queries"):
+left, right = row("sampling")
+with left, styles.section("new-queries", "2 · Queries"):
     by_name = {s.name: s for s in dataset.sets}
     set_name = st.selectbox(
         "Query set",
@@ -150,8 +151,6 @@ with left, styles.section("new-queries", "3 · Queries"):
         key=f"set-{dataset.id}",
     )
     query_set = by_name[set_name]
-    # Any encoder of the dataset can group a random pool; the given or nearest pools need it for the set.
-    encoders = sorted(set(query_set.knn_encoders) | set(query_set.given_encoders) | set(dataset.encoders))
     queries = st.number_input(
         "Number of queries",
         1,
@@ -160,42 +159,51 @@ with left, styles.section("new-queries", "3 · Queries"):
         help="A random sample of the set; all of them by default. Pilot queries are drawn from these later.",
     )
 
-with right, styles.section("new-pools", "4 · Encoder and pools"):
-    encoder: str | None = st.selectbox(
-        "Encoder",
-        [*encoders, None],
-        format_func=lambda name: name or "No encoder: judge one image at a time",
-        key=f"enc-{dataset.id}-{set_name}",
-        help="Groups every pool, and builds the pools of the most similar images.",
-    )
-    # (name, caption) of each pool source the encoder supports.
-    pools: dict[str, tuple[str, str]] = {}
-    if (encoder is None and query_set.given_pools) or encoder in query_set.given_encoders:
-        pools["file"] = ("Given candidates", "Listed with each query, e.g. a pool from existing runs")
-    if encoder in query_set.knn_encoders:
-        pools["knn"] = ("Nearest neighbours", "Each encoder's images most similar to the query")
-    if encoder is None or encoder in dataset.encoders:
-        pools["random"] = ("Random sample", "k images drawn at random: a baseline")
+with right, styles.section("new-sampling", "3 · Candidate sampling"):
+    st.caption("How each query's pool, the candidates annotators judge, is drawn from the collection.")
+    # (name, caption) of each method this query set can use.
+    methods: dict[str, tuple[str, str]] = {}
+    if query_set.given_pools or query_set.given_encoders:
+        methods["file"] = ("Given candidates", "Listed with each query, e.g. a pool from existing runs")
+    if query_set.knn_encoders:
+        methods["knn"] = ("Nearest neighbours", "Each encoder's images most similar to the query")
+    methods["random"] = ("Random sample", "k images drawn at random: a baseline")
     pool = st.radio(
-        "Pool",
-        list(pools),
-        format_func=lambda source: pools[source][0],
-        captions=[caption for _, caption in pools.values()],
+        "Method",
+        list(methods),
+        format_func=lambda source: methods[source][0],
+        captions=[caption for _, caption in methods.values()],
+        key=f"method-{dataset.id}-{set_name}",
     )
     k = None
     depths: dict[str, int] = {}
     if pool == "random":
         k = int(st.number_input("Images per pool (k)", 2, 5000, 50, step=10))
-    if pool == "knn" and encoder is not None:
-        # Every encoder that embedded the queries can pool; the encoder above starts picked.
-        depths = depth_table(
-            f"depths-{dataset.id}-{set_name}-{encoder}", query_set.knn_encoders, {encoder: 50}, 50
-        )
-    if pool == "random":
-        st.caption(
-            "A baseline that no encoder shapes: few relevant images, unless relevance is common in the "
-            "collection."
-        )
+        st.caption("A baseline that no encoder shapes: few relevant images, unless relevance is common.")
+    if pool == "knn":
+        pooling = sorted(query_set.knn_encoders)
+        depths = depth_table(f"depths-{dataset.id}-{set_name}", pooling, {pooling[0]: 50}, 50)
+    if st.toggle("Show embeddings", needed_encoding(dataset), key=f"embeddings-{dataset.id}"):
+        encoding_status(dataset)
+
+left, right = row("people")
+with left, styles.section("new-grouping", "4 · Grouping"):
+    # Grouping needs embeddings of the pool's images, whichever method drew them.
+    groupers: list[str | None]
+    if pool == "file":
+        groupers = [*sorted(query_set.given_encoders), *([None] if query_set.given_pools else [])]
+    elif pool == "knn":
+        groupers = [*sorted(query_set.knn_encoders)]
+    else:
+        groupers = [*sorted(dataset.encoders), None]
+    encoder: str | None = st.selectbox(
+        "Encoder",
+        groupers,
+        index=groupers.index(next(iter(depths))) if depths else 0,
+        format_func=lambda name: name or "No encoder: judge one image at a time",
+        key=f"enc-{dataset.id}-{set_name}-{pool}-{next(iter(depths), '')}",
+        help="Groups every pool by visual similarity.",
+    )
     if encoder is None:
         st.caption(
             "Every image is judged on its own, in pool order: no groups, Suggest mode or settings simulator."
@@ -207,8 +215,7 @@ with right, styles.section("new-pools", "4 · Encoder and pools"):
             else "These queries have no embedding of their own, so groups keep the candidates' order."
         )
 
-left, right = row("people")
-with left, styles.section("new-labels", "5 · Labels"):
+with right, styles.section("new-labels", "5 · Labels"):
     st.markdown(
         ":green[:material/check:] **Relevant**: grade 1 in the qrels.\n\n"
         ":red[:material/close:] **Not Relevant**: grade 0.\n\n"
@@ -217,7 +224,7 @@ with left, styles.section("new-labels", "5 · Labels"):
     unsure = st.toggle("Offer Unsure", True, help="It can be switched off later, in the study's settings.")
     st.caption("Colours and short names can change later; label names and grades are fixed now.")
 
-with right, styles.section("new-people", "6 · Name and team"):
+with styles.section("new-people", "6 · Name and team"):
     people = [u for u in api.usernames() if u != st.session_state.username]
     # A form: the name and people reach the server with the click, so Create works on the first click even
     # while the name field still has the focus.
@@ -243,7 +250,7 @@ with right, styles.section("new-people", "6 · Name and team"):
         elif twice:
             st.error(f"Each person has one role in a study: {', '.join(twice)} has more than one.")
         elif pool == "knn" and not depths:
-            st.error("Pick at least one pooling encoder in section 4.")
+            st.error("Pick at least one pooling encoder in section 3.")
         else:
             body = {
                 "name": name.strip(),
