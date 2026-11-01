@@ -72,7 +72,7 @@ def main() -> None:
     emb_nd = np.stack([np.asarray(images[i].resize((16, 12)), dtype=np.float32).ravel() / 255 for i in ids])
     np.savez(args.out / "embeddings.npz", ids=np.array(ids), emb_nd=emb_nd - emb_nd.mean(axis=0))
     (args.out / "queries.jsonl").write_text("\n".join(lines) + "\n")
-    (args.out / "cara.yaml").write_text(CARA_YAML)
+    (args.out / "cara.yaml").write_text(CARA_YAML, encoding="utf-8")
     (args.out / "dataset.yaml").write_text("name: Toy shapes\ndescription: Synthetic shapes to try CARA.\n")
 
 
