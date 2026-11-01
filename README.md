@@ -18,11 +18,13 @@ time each grouping setting saves and how much recall it costs. Judgments export 
 by consensus.
 
 ![The judge page: the query on the left, its pool in groups of similar images on the right](docs/assets/screenshots/judge.webp)
-<p align="center"><em>The judge page on a query from <a href="http://cmp.felk.cvut.cz/met/">The Met dataset</a>
-(Ypsilantis et al., NeurIPS 2021): the query on the left, its pool in groups of similar images on the right.</em></p>
+<p align="center"><em>The judge page on the toy dataset: the query on the left, its pool in groups of similar images on the right.</em></p>
+
+**[Documentation](https://tibhannover.github.io/CARA/)**
 
 ## Features
 
+- **Candidate sampling.** Pools from existing runs, the nearest neighbours of one or more encoders, or a random sample.
 - **Group, then correct.** Label a group with one click, override single images, split mixed groups.
 - **Suggest mode.** After a few marked images, similar unjudged images get a suggested label.
 - **Review round.** A labelled pool sorted by label, where missed Relevant images are easiest to spot.
@@ -33,7 +35,7 @@ by consensus.
 
 ## Quickstart
 
-Needs [Docker](https://docs.docker.com/get-docker/) with Compose.
+Needs [Docker](https://docs.docker.com/get-docker/) with Compose, and a terminal: any on Linux or macOS, Git Bash on Windows.
 
 ```bash
 git clone https://github.com/TIBHannover/CARA.git && cd CARA
@@ -44,7 +46,13 @@ bash quickstart.sh --toy
 - Log in as `admin`; the password is `CARA_ADMIN_PASSWORD` in `.env`, written on the first run.
 - `--toy` adds a small dataset of coloured shapes and a study for the annotator `alice` / `alice`.
   Use a private browser window for `alice`.
-- `bash quickstart.sh` without `--toy` starts an empty CARA.
+- `bash quickstart.sh` on its own starts an empty CARA.
+
+### A study on The Met
+
+`bash scripts/met_study.sh` sets up a study on [The Met dataset](http://cmp.felk.cvut.cz/met/) (Ypsilantis et al.,
+NeurIPS 2021) in a running CARA. It downloads the dataset from its authors and encodes it, which needs
+[uv](https://docs.astral.sh/uv/) and about 4 GB of disk space.
 
 ### Stop, restart, update
 
@@ -59,23 +67,13 @@ docker compose up -d --build          # after changing the code: rebuild and res
 
 ## Workflow
 
-A study's tabs follow the work. Dashed steps are optional.
-
-```mermaid
-flowchart LR
-  data[Add a dataset] --> study[New study]
-  study --> guide[Guidelines] --> pilot[Pilot] --> results1[Pilot results] --> sim[Simulation] --> annot[Annotation]
-  study --> annot
-  annot --> progress[Progress] --> final[Results]
-  classDef optional stroke-dasharray: 5 5
-  class pilot,results1,guide,sim optional
-```
+New study decides how each query's pool is sampled and which encoder groups it. The study's tabs then follow the work.
 
 | Tab | What happens |
 |---|---|
+| Guidelines | What counts as relevant, with example images. |
 | Pilot | A few queries, judged one image at a time, to see how annotators judge. |
 | Pilot results | Speed, label shares and agreement of the pilot annotators. |
-| Guidelines | What counts as relevant, with example images. |
 | Simulation | Compare grouping settings on the pilot's labels or a qrels file. |
 | Annotation | Assign the queries (this starts annotation) and adjust the study's settings. |
 | Progress | Each annotator's progress. |
@@ -104,10 +102,17 @@ A query, with its pool given (candidates in rank order) or built from `corpus.js
 {"query_id": "q2", "text": "a red ceramic vase"}
 ```
 
-Then add it, embed it, and create a study on the Studies page (**New study**):
+Then add it, and create a study on the Studies page (**New study**):
 
 ```bash
 docker compose exec backend cara dataset-add /data/my_dataset
+```
+
+**Candidate sampling** in New study draws each query's pool, in one of three ways: the candidates listed with the query,
+the nearest neighbours of one or more encoders, or a random sample. Embeddings are needed for nearest neighbours and for
+grouping, so skip this step only if you use given candidates or a random sample and judge one image at a time:
+
+```bash
 docker compose exec backend cara encode my_dataset --encoder siglip2
 ```
 
@@ -149,7 +154,10 @@ cd ../frontend && uv sync && CARA_API_URL=http://localhost:8000 .venv/bin/stream
 ```
 
 - Backend checks: `ruff format . && ruff check . && mypy && pytest -q` in `backend/`.
-- Frontend checks: `ruff check . && mypy` in `frontend/`.
+- Frontend checks: `ruff format . && ruff check . && mypy` in `frontend/`.
+
+To reproduce the paper's experiment, run `bash scripts/run_experiments.sh`
+([details](https://tibhannover.github.io/CARA/reproducing/)).
 
 ## Acknowledgements
 

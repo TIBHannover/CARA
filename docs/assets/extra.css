@@ -1,0 +1,13 @@
+/* CARA's indigo (the app's primary colour) for links and accents, and a hairline frame around screenshots. */
+:root, [data-md-color-scheme="default"] {
+  --md-accent-fg-color: #4f46e5;
+  --md-typeset-a-color: #4f46e5;
+}
+[data-md-color-scheme="slate"] {
+  --md-accent-fg-color: #a5b4fc;
+  --md-typeset-a-color: #a5b4fc;
+}
+.md-typeset img[src*="screenshots/"] {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+}

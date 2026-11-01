@@ -1,0 +1,87 @@
+site_name: CARA
+site_description: Cluster-Assisted Relevance Assessment for image retrieval
+site_url: https://tibhannover.github.io/CARA/
+repo_url: https://github.com/TIBHannover/CARA
+repo_name: TIBHannover/CARA
+copyright: MIT licence · Visual Analytics Research Group (VARG)
+docs_dir: docs
+watch: [GLOSSARY.md]
+
+theme:
+  name: material
+  font: false
+  logo: assets/icon.svg
+  favicon: assets/favicon.svg
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: indigo
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: indigo
+      toggle: {icon: material/weather-sunny, name: Light mode}
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - content.code.copy
+    - search.highlight
+
+extra_css: [assets/extra.css]
+
+markdown_extensions:
+  - admonition
+  - def_list
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Installation: get-started/installation.md
+      - "Tutorial: a first study": get-started/tutorial.md
+  - Set up:
+      - Datasets: setup/datasets.md
+      - Encoding (optional): setup/encoding.md
+      - Deployment: setup/deployment.md
+  - Run a study:
+      - study/index.md
+      - 1 · New study: study/new-study.md
+      - 2 · Guidelines: study/guidelines.md
+      - 3 · Pilot: study/pilot.md
+      - 4 · Simulation: study/simulation.md
+      - 5 · Annotation: study/annotation.md
+      - 6 · Results and exports: study/results.md
+  - Judge:
+      - Judging: judging/judging.md
+      - Adjudicating: judging/adjudicating.md
+  - Reference:
+      - Study settings: reference/settings.md
+      - Command line: reference/cli.md
+      - API: reference/api.md
+      - Glossary: reference/glossary.md
+      - References: reference/references.md
+  - Help:
+      - Troubleshooting: help/troubleshooting.md
+      - Release notes: help/release-notes.md
+  - Contribute:
+      - Development: development.md
+      - Reproducing the paper: reproducing.md
+      - Extending CARA: reference/extending.md
+      - Architecture: reference/architecture.md
