@@ -1,0 +1,44 @@
+defaults:
+  - dataset: met_val
+  - _self_
+
+depths: [100]
+seed: 0
+workers: 10
+
+strategies:
+  - {name: one_at_a_time, grouping: {method: none}}
+  - {name: kmeans-k10, grouping: {method: kmeans, n_groups: 10, max_size: 1000}}
+  - {name: kmeans-k20, grouping: {method: kmeans, n_groups: 20, max_size: 1000}}
+  - {name: kmeans-k10-G16, grouping: {method: kmeans, n_groups: 10, max_size: 16}}
+  - {name: hdbscan-m5, grouping: {method: hdbscan, min_cluster_size: 5, max_size: 1000}}
+  - {name: hdbscan-m5-G16, grouping: {method: hdbscan, min_cluster_size: 5, max_size: 16}}
+  - name: agglo-complete-G16-solo10-top0
+    grouping: {method: agglomerative, linkage: complete, max_size: 16}
+    solo_percentile: 10
+  - name: agglo-single-G16-solo10-top0
+    grouping: {method: agglomerative, linkage: single, max_size: 16}
+    solo_percentile: 10
+
+grid:
+  linkage: [average]
+  max_size: [8, 16, 24, 32]
+  solo_percentile: [0, 5, 10]
+  top_k_individual: [0, 10, 20]
+
+assessors:
+  - {name: perfect, assessor: {kind: perfect}}
+  - {name: perfect_split, assessor: {kind: perfect, split: true}}
+  - {name: group_only, assessor: {kind: group_only}}
+  - {name: realistic, assessor: {kind: realistic}}
+
+reviews:
+  - {name: none, round: {enabled: false}}
+  - {name: review, round: {enabled: true, negatives_shown: 60, order: relevant}}
+
+hydra:
+  run:
+    dir: outputs/simulate/${dataset.name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/simulate/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${dataset.name}

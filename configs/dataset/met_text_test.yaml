@@ -1,0 +1,6 @@
+name: met_text_test
+folder: data/met_text_test
+order: pool_rank
+max_queries: null
+qrels:
+  category: {path: data/met_text_test/category.qrels}

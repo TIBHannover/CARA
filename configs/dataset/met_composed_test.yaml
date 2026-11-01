@@ -1,0 +1,6 @@
+name: met_composed_test
+folder: data/met_composed_test
+order: pool_rank
+max_queries: null
+qrels:
+  category: {path: data/met_composed_test/category.qrels}

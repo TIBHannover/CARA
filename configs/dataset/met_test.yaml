@@ -1,0 +1,7 @@
+name: met_test
+folder: data/met_test_all
+order: similarity
+max_queries: null
+qrels:
+  instance: {path: data/met_test_all/ground_truth.qrels}
+  category: {path: data/met_test_all/category_object_name.qrels, exclude: [7f65bc401f6b, b43abb54c9cf]}
